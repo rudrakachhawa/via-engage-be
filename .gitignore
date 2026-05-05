@@ -1,0 +1,76 @@
+# Node.js & Express
+node_modules/
+
+# Dependency directories
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+
+# Environment variables
+.env
+
+# Logs
+logs
+*.log
+
+# Runtime data
+pids
+*.pid
+
+# Coverage reports
+coverage/
+
+# Build output
+dist/
+build/
+
+# Production files
+public/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# IDE / editor files
+.idea/
+.vscode/
+*.sublime-workspace
+*.sublime-project
+
+# Optional npm cache
+.npm
+
+# Optional yarn cache
+.yarn
+
+# Optional lock files (if you want to ignore them, but usually they are kept)
+package-lock.json
+yarn.lock
+
+# Miscellaneous
+*.tgz
+*.gz
+
+# Binaries
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Test output
+*.test.js
+*.spec.js
+
+# Jest coverage
+jest-output.json
+
+# .env.local files
+.env.local
+.env.development
+.env.test
+.env.production
