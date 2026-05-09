@@ -39,6 +39,4 @@ app.use(function (err: any, req: Request, res: Response, next: NextFunction) {
   res.render('error');
 });
 
-app.use('/meta-oauth', metaOauthRouter);
-
 export default app;

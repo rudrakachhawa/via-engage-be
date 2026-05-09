@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Request, Response } from 'express-serve-static-core';
+import { Request, Response } from 'express';
 
 const exchangeInstaOauthCode = async (req: Request, res: Response) => {
     try {
@@ -70,8 +70,8 @@ const exchangeInstaOauthCode = async (req: Request, res: Response) => {
             username: meResponse.data.username,
             name: meResponse.data.name
         });
-    } catch (error) {
-        const status = error?.response?.status || 500;
+    } catch (error: unknown) {
+        const status = axios.isAxiosError(error) ? (error.response?.status ?? 500) : 500;
         return res.status(status).json({
             message: 'Instagram OAuth exchange failed',
             error: error
