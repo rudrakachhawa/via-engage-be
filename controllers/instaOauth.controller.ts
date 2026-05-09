@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { Request, Response } from 'express-serve-static-core';
 
-const exchangeMetaOauthCode = async (req: Request, res: Response) => {
+const exchangeInstaOauthCode = async (req: Request, res: Response) => {
     try {
         const code = req.body?.code;
 
@@ -16,7 +16,7 @@ const exchangeMetaOauthCode = async (req: Request, res: Response) => {
 
         if (!clientId || !clientSecret || !redirectUri) {
             return res.status(500).json({
-                message: 'META_CLIENT_ID, META_CLIENT_SECRET, META_REDIRECT_URI must be set'
+                message: 'INSTA_APP_CLIENT_ID, INSTA_APP_CLIENT_SECRET, INSTA_APP_REDIRECT_URI must be set'
             });
         }
 
@@ -73,10 +73,10 @@ const exchangeMetaOauthCode = async (req: Request, res: Response) => {
     } catch (error) {
         const status = error?.response?.status || 500;
         return res.status(status).json({
-            message: 'Meta OAuth exchange failed',
+            message: 'Instagram OAuth exchange failed',
             error: error
         });
     }
 };
 
-export default exchangeMetaOauthCode;
+export default exchangeInstaOauthCode;
