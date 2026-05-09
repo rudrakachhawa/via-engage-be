@@ -4,11 +4,31 @@ import express, { Request, Response, NextFunction } from 'express';
 import path from 'path';
 import cookieParser from 'cookie-parser';
 import logger from 'morgan';
+import cors from 'cors';
 
 import instaOauthRouter from './routes/instaOauth.route';
 import indexRouter from './routes/index';
 
 const app = express();
+
+app.use((req, res, next) => {
+  const allowedOrigins = [
+    "http://localhost:3000",
+    "https://via-engage-98n76n77b-rudrakshkachhawa-9620s-projects.vercel.app",
+    "https://via-engage-fe.vercel.app"
+  ];
+  const origin = req.headers.origin;
+  if (origin && allowedOrigins.includes(origin)) {
+    res.header("Access-Control-Allow-Origin", origin);
+    res.header("Access-Control-Allow-Credentials", "true");
+    res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Origin,X-Requested-With,Content-Type,Accept,Authorization");
+    if (req.method === "OPTIONS") {
+      return res.sendStatus(200);
+    }
+  }
+  next();
+});
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
