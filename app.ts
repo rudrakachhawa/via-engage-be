@@ -7,6 +7,7 @@ import logger from 'morgan';
 import cors from 'cors';
 
 import instaOauthRouter from './routes/instaOauth.route';
+import userRouter from './routes/user.route'
 import indexRouter from './routes/index';
 
 const app = express();
@@ -42,6 +43,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/', indexRouter);
 app.use('/insta-oauth', instaOauthRouter);
+app.use('/user', userRouter);
 
 // catch 404 and forward to error handler
 app.use(function (req: Request, res: Response, next: NextFunction) {

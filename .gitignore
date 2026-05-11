@@ -74,3 +74,6 @@ jest-output.json
 .env.development
 .env.test
 .env.production
+
+/generated/prisma
+googleServiceAccountKey.json
