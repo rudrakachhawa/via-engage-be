@@ -16,7 +16,8 @@ app.use((req, res, next) => {
   const allowedOrigins = [
     "http://localhost:3000",
     "https://via-engage-98n76n77b-rudrakshkachhawa-9620s-projects.vercel.app",
-    "https://via-engage-fe.vercel.app"
+    "https://via-engage-fe.vercel.app",
+    "https://engage-via-dm.rudrakshkachhawa.workers.dev"
   ];
   const origin = req.headers.origin;
   if (origin && allowedOrigins.includes(origin)) {
