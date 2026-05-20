@@ -13,19 +13,7 @@ steps:
       - 'push'
       - 'asia-south1-docker.pkg.dev/$PROJECT_ID/engage-via-dm-repo/engage-via-dm-be:$COMMIT_SHA'
 
-  # Step 3 — run prisma migrations
-  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    entrypoint: 'bash'
-    args:
-      - '-c'
-      - |
-        docker run \
-          -e DATABASE_URL=$$DATABASE_URL \
-          asia-south1-docker.pkg.dev/$PROJECT_ID/engage-via-dm-repo/engage-via-dm-be:$COMMIT_SHA \
-          npx prisma migrate deploy
-    secretEnv: ['DATABASE_URL']
-
-  # Step 4 — deploy to Cloud Run
+  # Step 3 — deploy to Cloud Run
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: gcloud
     args:
@@ -38,11 +26,6 @@ steps:
       - '--allow-unauthenticated'
       - '--port=8080'
       - '--set-secrets=DATABASE_URL=DATABASE_URL:latest,INSTA_APP_CLIENT_ID=INSTA_APP_CLIENT_ID:latest,INSTA_APP_CLIENT_SECRET=INSTA_APP_CLIENT_SECRET:latest,INSTA_APP_REDIRECT_URI=INSTA_APP_REDIRECT_URI:latest,FIREBASE_PROJECT_ID=FIREBASE_PROJECT_ID:latest,FIREBASE_CLIENT_EMAIL=FIREBASE_CLIENT_EMAIL:latest,FIREBASE_PRIVATE_KEY=FIREBASE_PRIVATE_KEY:latest,PORT=PORT:latest'
-
-availableSecrets:
-  secretManager:
-    - versionName: projects/$PROJECT_ID/secrets/DATABASE_URL/versions/latest
-      env: DATABASE_URL
 
 images:
   - 'asia-south1-docker.pkg.dev/$PROJECT_ID/engage-via-dm-repo/engage-via-dm-be:$COMMIT_SHA'
