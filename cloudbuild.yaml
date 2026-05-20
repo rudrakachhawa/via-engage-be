@@ -60,3 +60,6 @@ availableSecrets:
 
 images:
   - 'asia-south1-docker.pkg.dev/$PROJECT_ID/engage-via-dm-repo/engage-via-dm-be:$COMMIT_SHA'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
