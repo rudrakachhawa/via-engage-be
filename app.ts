@@ -8,6 +8,8 @@ import cors from 'cors';
 
 import instaOauthRouter from './routes/instaOauth.route';
 import userRouter from './routes/user.route'
+import mediaRouter from './routes/media.route'
+import automationRouter from './routes/automation.route'
 import indexRouter from './routes/index';
 
 const app = express();
@@ -19,16 +21,26 @@ app.use((req, res, next) => {
     "https://via-engage-fe.vercel.app",
     "https://engage-via-dm.rudrakshkachhawa.workers.dev"
   ];
+
   const origin = req.headers.origin;
+
   if (origin && allowedOrigins.includes(origin)) {
     res.header("Access-Control-Allow-Origin", origin);
     res.header("Access-Control-Allow-Credentials", "true");
-    res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS");
-    res.header("Access-Control-Allow-Headers", "Origin,X-Requested-With,Content-Type,Accept,Authorization");
-    if (req.method === "OPTIONS") {
-      return res.sendStatus(200);
-    }
+    res.header(
+      "Access-Control-Allow-Methods",
+      "GET,POST,PUT,PATCH,DELETE,OPTIONS"
+    );
+    res.header(
+      "Access-Control-Allow-Headers",
+      "Origin,X-Requested-With,Content-Type,Accept,Authorization"
+    );
   }
+
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
+
   next();
 });
 
@@ -45,6 +57,8 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use('/', indexRouter);
 app.use('/insta-oauth', instaOauthRouter);
 app.use('/user', userRouter);
+app.use('/media', mediaRouter)
+app.use('/automation', automationRouter)
 
 // catch 404 and forward to error handler
 app.use(function (req: Request, res: Response, next: NextFunction) {

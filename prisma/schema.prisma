@@ -8,14 +8,12 @@ datasource db {
 }
 
 model User {
-
-  id String @id @default(cuid())
-
-  email  String  @unique
-  name   String?
-  avatar String?
-  igUserId     String?  @unique
-  firebaseUuid String @unique
+  id           String  @id @default(cuid())
+  email        String  @unique
+  name         String?
+  avatar       String?
+  igUserId     String? @unique
+  firebaseUuid String  @unique
 
   instaUser  InstaUser?
   instaOauth InstaOauth?
@@ -33,6 +31,9 @@ model InstaUser {
   avatar   String
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  automations Automation[]
+  events      EventQueue[]
 }
 
 model InstaOauth {
@@ -40,6 +41,98 @@ model InstaOauth {
   igUserId    String
   accessToken String
   expires_in  Int
+  expiresAt   DateTime?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Automation {
+  id        String    @id @default(cuid())
+  igUserId  String
+  instaUser InstaUser @relation(fields: [igUserId], references: [igUserId], onDelete: Cascade)
+
+  name        String
+  description String?
+  messageTemplate String?
+  triggerType TriggerType?
+  keywords    String[] @default([])
+
+  targetContentId   String?
+  targetContentType ContentType?
+  targetContentUrl  String?
+  targetThumbnailUrl String?
+
+  isActive Boolean @default(false)
+
+  replies AutomationReply[]
+  events  EventQueue[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model AutomationReply {
+  id           String     @id @default(cuid())
+  automationId String
+  automation   Automation @relation(fields: [automationId], references: [id], onDelete: Cascade)
+
+  message String
+  order   Int    @default(0)
+
+  createdAt DateTime @default(now())
+}
+
+model EventQueue {
+  id        String    @id @default(cuid())
+  igUserId  String
+  instaUser InstaUser @relation(fields: [igUserId], references: [igUserId], onDelete: Cascade)
+
+  automationId String
+  automation   Automation @relation(fields: [automationId], references: [id], onDelete: Cascade)
+
+  triggerType       TriggerType
+  recipientIgId     String
+  recipientUsername String?
+  commentId         String?
+  mediaId           String?
+  commentText       String?
+  rawPayload        Json
+
+  status   EventStatus @default(PENDING)
+  priority Int         @default(2)
+
+  triggeredAt     DateTime
+  expiresAt       DateTime
+
+  attempts        Int       @default(0)
+  lastAttemptedAt DateTime?
+  errorLog        String?
+
+  createdAt DateTime @default(now())
+
+  @@index([status, priority, triggeredAt])
+  @@index([igUserId, status])
+}
+
+enum TriggerType {
+  COMMENT
+  DM
+  LIVE_COMMENT
+  STORY_REPLY
+  MENTION
+}
+
+enum ContentType {
+  POST
+  REEL
+  STORY
+}
+
+enum EventStatus {
+  PENDING
+  PROCESSING
+  DM_SENT
+  COMMENT_REPLIED
+  FAILED
+  EXPIRED
 }
