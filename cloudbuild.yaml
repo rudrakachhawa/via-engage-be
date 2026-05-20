@@ -43,20 +43,6 @@ availableSecrets:
   secretManager:
     - versionName: projects/$PROJECT_ID/secrets/DATABASE_URL/versions/latest
       env: DATABASE_URL
-    - versionName: projects/$PROJECT_ID/secrets/INSTA_APP_CLIENT_ID/versions/latest
-      env: INSTA_APP_CLIENT_ID
-    - versionName: projects/$PROJECT_ID/secrets/INSTA_APP_CLIENT_SECRET/versions/latest
-      env: INSTA_APP_CLIENT_SECRET
-    - versionName: projects/$PROJECT_ID/secrets/INSTA_APP_REDIRECT_URI/versions/latest
-      env: INSTA_APP_REDIRECT_URI
-    - versionName: projects/$PROJECT_ID/secrets/FIREBASE_PROJECT_ID/versions/latest
-      env: FIREBASE_PROJECT_ID
-    - versionName: projects/$PROJECT_ID/secrets/FIREBASE_CLIENT_EMAIL/versions/latest
-      env: FIREBASE_CLIENT_EMAIL
-    - versionName: projects/$PROJECT_ID/secrets/FIREBASE_PRIVATE_KEY/versions/latest
-      env: FIREBASE_PRIVATE_KEY
-    - versionName: projects/$PROJECT_ID/secrets/PORT/versions/latest
-      env: PORT
 
 images:
   - 'asia-south1-docker.pkg.dev/$PROJECT_ID/engage-via-dm-repo/engage-via-dm-be:$COMMIT_SHA'
