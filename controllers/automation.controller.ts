@@ -88,7 +88,8 @@ async function updateAutomation(req: Request, res: Response) {
             targetThumbnailUrl,
             keywords,
             isActive,
-            replies // new field, array of {message, order}
+            replies,
+            igUserId
         } = req.body;
 
         // Only allow updating fields that are actually present
@@ -103,6 +104,7 @@ async function updateAutomation(req: Request, res: Response) {
         if (targetThumbnailUrl !== undefined) updateData.targetThumbnailUrl = targetThumbnailUrl;
         if (keywords !== undefined) updateData.keywords = keywords;
         if (isActive !== undefined) updateData.isActive = isActive;
+        if (igUserId !== undefined) updateData.igUserId = igUserId;
 
         // Fetch current automation to know its active state
         const automationId = typeof id === 'string' ? id : id[0];
@@ -127,6 +129,7 @@ async function updateAutomation(req: Request, res: Response) {
             const effectiveTargetContentUrl = targetContentUrl !== undefined ? targetContentUrl : existing.targetContentUrl;
             const effectiveTargetThumbnailUrl = targetThumbnailUrl !== undefined ? targetThumbnailUrl : existing.targetThumbnailUrl;
             const effectiveKeywords = keywords !== undefined ? keywords : existing.keywords;
+            const effectiveIgUserId = igUserId !== undefined ? igUserId : existing.igUserId;
 
             if (
                 !effectiveName ||
@@ -138,7 +141,8 @@ async function updateAutomation(req: Request, res: Response) {
                 !effectiveTargetContentUrl ||
                 !effectiveTargetThumbnailUrl ||
                 !effectiveKeywords ||
-                (Array.isArray(effectiveKeywords) && effectiveKeywords.length === 0)
+                (Array.isArray(effectiveKeywords) && effectiveKeywords.length === 0) ||
+                !effectiveIgUserId
             ) {
                 return res.status(400).json({
                     error: 'All fields (name, description, triggerType, messageTemplate, targetContentId, targetContentType, targetContentUrl, targetThumbnailUrl, keywords) are required while automation is active'
