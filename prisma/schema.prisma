@@ -12,18 +12,18 @@ model User {
   email        String  @unique
   name         String?
   avatar       String?
-  igUserId     String? @unique
   firebaseUuid String  @unique
 
-  instaUser  InstaUser?
-  instaOauth InstaOauth?
+  instaAccounts      InstaAccount[]
+  instaAccountOauths InstaAccountOauth[]  // ← array
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
-model InstaUser {
-  userId   String @id
+model InstaAccount {
+  id       String @id @default(cuid())
+  userId   String
   igUserId String @unique
   scope    String
   userName String
@@ -36,9 +36,10 @@ model InstaUser {
   events      EventQueue[]
 }
 
-model InstaOauth {
-  userId      String @id
-  igUserId    String
+model InstaAccountOauth {
+  id          String @id @default(cuid())  // ← surrogate PK
+  userId      String
+  igUserId    String @unique               // ← one token per IG account
   accessToken String
   expires_in  Int
   expiresAt   DateTime?
@@ -47,19 +48,20 @@ model InstaOauth {
 }
 
 model Automation {
-  id        String    @id @default(cuid())
-  igUserId  String
-  instaUser InstaUser @relation(fields: [igUserId], references: [igUserId], onDelete: Cascade)
+  id           String       @id @default(cuid())
+  userId       String?
+  igUserId     String?
+  instaAccount InstaAccount? @relation(fields: [igUserId], references: [igUserId], onDelete: Cascade)
 
-  name        String
-  description String?
-  messageTemplate String?
-  triggerType TriggerType?
-  keywords    String[] @default([])
+  name               String
+  description        String?
+  messageTemplate    String?
+  triggerType        TriggerType?
+  keywords           String[]     @default([])
 
-  targetContentId   String?
-  targetContentType ContentType?
-  targetContentUrl  String?
+  targetContentId    String?
+  targetContentType  ContentType?
+  targetContentUrl   String?
   targetThumbnailUrl String?
 
   isActive Boolean @default(false)
@@ -83,9 +85,9 @@ model AutomationReply {
 }
 
 model EventQueue {
-  id        String    @id @default(cuid())
-  igUserId  String
-  instaUser InstaUser @relation(fields: [igUserId], references: [igUserId], onDelete: Cascade)
+  id           String       @id @default(cuid())
+  igUserId     String
+  instaAccount InstaAccount @relation(fields: [igUserId], references: [igUserId], onDelete: Cascade)
 
   automationId String
   automation   Automation @relation(fields: [automationId], references: [id], onDelete: Cascade)
@@ -101,8 +103,8 @@ model EventQueue {
   status   EventStatus @default(PENDING)
   priority Int         @default(2)
 
-  triggeredAt     DateTime
-  expiresAt       DateTime
+  triggeredAt DateTime
+  expiresAt   DateTime
 
   attempts        Int       @default(0)
   lastAttemptedAt DateTime?

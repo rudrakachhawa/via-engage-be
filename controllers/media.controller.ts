@@ -6,25 +6,12 @@ import axios from 'axios';
 
 export async function getUserMedia(req: Request, res: Response) {
     try {
-        // igUserId is now available in req.user.igUserId
-        const igUserId = (req as any).user?.igUserId;
+        const oauth = (req as any).user?.igData?.instaOauth
         let { type } = req.query as { type?: string };
         // type is optional filter — STORY or FEED
         // Default type is FEED
         if (!type) {
             type = 'FEED';
-        }
-
-        if (!igUserId) {
-            return res.status(400).json({ error: 'igUserId is required' });
-        }
-
-        // get access token from your DB
-        const oauth = await prisma.instaOauth.findUnique({
-            where: { igUserId: igUserId, userId: (req as any).user.id }
-        });
-        if (!oauth) {
-            return res.status(404).json({ error: 'IG account not found' });
         }
 
         // check token not expired

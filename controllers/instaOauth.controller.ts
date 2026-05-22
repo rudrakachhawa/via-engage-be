@@ -55,7 +55,6 @@ const exchangeInstaOauthCode = async (req: Request & { user?: any }, res: Respon
             return res.status(401).json({ message: 'User not authenticated' });
         }
 
-        // Upsert InstaUser
         const igUserData = {
             igUserId: igUser.user_id,
             scope,
@@ -63,8 +62,9 @@ const exchangeInstaOauthCode = async (req: Request & { user?: any }, res: Respon
             name: igUser.name,
             avatar: igUser.profile_picture_url || ""
         };
-        await prisma.instaUser.upsert({
-            where: { userId },
+
+        await prisma.instaAccount.upsert({
+            where: { userId, igUserId: igUser.user_id },
             update: igUserData,
             create: { userId, ...igUserData }
         });
@@ -75,21 +75,11 @@ const exchangeInstaOauthCode = async (req: Request & { user?: any }, res: Respon
             accessToken: longLived.access_token,
             expires_in: longLived.expires_in
         };
-        await prisma.instaOauth.upsert({
+        await prisma.instaAccountOauth.upsert({
             where: { userId, igUserId: igUser.user_id },
             update: oauthData,
             create: { userId, ...oauthData }
         });
-
-        await prisma.user.update({
-            where: {
-                id: userId
-            },
-            data: {
-                igUserId: igUser.user_id
-            }
-        });
-
 
         // Structured final response
         return res.status(200).json({

@@ -21,14 +21,17 @@ const verifyFirebaseToken = async (
 
         const decodedToken = await admin.auth().verifyIdToken(token);
 
-        // FIND USER
+        // FIND USER and include instaAccounts
         let user = await prisma.user.findUnique({
             where: {
                 firebaseUuid: decodedToken.uid,
             },
+            include: {
+                instaAccounts: true
+            }
         });
 
-        // CREATE USER
+        // CREATE USER if not exists (and fetch instaAccounts)
         if (!user) {
             user = await prisma.user.create({
                 data: {
@@ -37,19 +40,12 @@ const verifyFirebaseToken = async (
                     name: decodedToken.name,
                     avatar: decodedToken.picture,
                 },
+                include: {
+                    instaAccounts: true
+                }
             });
         }
 
-
-        // Fetch the associated instaUser (if any) and always attach igData (empty object if not found)
-        if (user) {
-            const instaUser = await prisma.instaUser.findUnique({
-                where: {
-                    userId: user.id,
-                },
-            });
-            (user as any).igData = instaUser ? instaUser : {};
-        }
         (req as any).user = { ...user };
 
         next();

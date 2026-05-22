@@ -4,13 +4,10 @@ import prisma from '../config/prisma';
 // ── CREATE ──────────────────────────────────────────
 async function createAutomation(req: Request, res: Response) {
     try {
-        // Only igUserId is required (from authenticated session)
-        const igUserId = (req as any).user?.igUserId;
-
         // Accept nothing from body: all fields default except igUserId and name
         const automation = await prisma.automation.create({
             data: {
-                igUserId,
+                userId: (req as any).user.id,
                 name: 'Untitled',
                 isActive: false
             }
@@ -27,14 +24,9 @@ async function createAutomation(req: Request, res: Response) {
 // ── GET ALL ─────────────────────────────────────────
 async function getAutomations(req: Request, res: Response) {
     try {
-        const igUserId = (req as any).user?.igUserId;
-
-        if (!igUserId) {
-            return res.status(400).json({ error: 'igUserId (from authenticated user) is required' });
-        }
-
+        const userId = (req as any).user.id
         const automations = await prisma.automation.findMany({
-            where: { igUserId },
+            where: { userId },
             orderBy: { createdAt: 'desc' },
             include: {
                 _count: {
@@ -55,9 +47,9 @@ async function getAutomations(req: Request, res: Response) {
 async function getAutomation(req: Request, res: Response) {
     try {
         const { id } = req.params;
-
+        const userId = (req as any).user.id
         const automation = await prisma.automation.findUnique({
-            where: { id: typeof id === 'string' ? id : id[0] },
+            where: { id: typeof id === 'string' ? id : id[0], userId },
             include: {
                 _count: {
                     select: { events: true }
@@ -84,6 +76,7 @@ async function getAutomation(req: Request, res: Response) {
 async function updateAutomation(req: Request, res: Response) {
     try {
         const { id } = req.params;
+        const userId = (req as any).user.id
         const {
             name,
             description,
@@ -114,7 +107,7 @@ async function updateAutomation(req: Request, res: Response) {
         // Fetch current automation to know its active state
         const automationId = typeof id === 'string' ? id : id[0];
         const existing = await prisma.automation.findUnique({
-            where: { id: automationId },
+            where: { id: automationId, userId },
             include: { replies: true }
         });
         if (!existing) {
@@ -187,7 +180,7 @@ async function updateAutomation(req: Request, res: Response) {
         }
 
         const automation = await prisma.automation.update({
-            where: { id: automationId },
+            where: { id: automationId, userId },
             data: updateData,
             include: {
                 replies: true,
@@ -210,9 +203,9 @@ async function updateAutomation(req: Request, res: Response) {
 async function deleteAutomation(req: Request, res: Response) {
     try {
         const { id } = req.params;
-
+        const userId = (req as any).user.id
         // Fetch existing automation to check if it is active
-        const existing = await prisma.automation.findUnique({ where: { id: typeof id === 'string' ? id : id[0] } });
+        const existing = await prisma.automation.findUnique({ where: { id: typeof id === 'string' ? id : id[0], userId } });
         if (!existing) {
             return res.status(404).json({ error: 'Automation not found' });
         }
@@ -223,7 +216,7 @@ async function deleteAutomation(req: Request, res: Response) {
         //     return res.status(400).json({ error: 'Cannot delete active automation. Please pause it first.' });
         // }
 
-        await prisma.automation.delete({ where: { id: typeof id === 'string' ? id : id[0] } });
+        await prisma.automation.delete({ where: { id: typeof id === 'string' ? id : id[0], userId } });
 
         return res.status(200).json({ message: 'Automation deleted' });
 
@@ -240,10 +233,10 @@ async function deleteAutomation(req: Request, res: Response) {
 async function toggleAutomation(req: Request, res: Response) {
     try {
         const { id } = req.params;
-
+        const userId = (req as any).user.id
         const automationId = typeof id === 'string' ? id : id[0];
 
-        const current = await prisma.automation.findUnique({ where: { id: automationId } });
+        const current = await prisma.automation.findUnique({ where: { id: automationId, userId } });
         if (!current) {
             return res.status(404).json({ error: 'Automation not found' });
         }
@@ -265,7 +258,7 @@ async function toggleAutomation(req: Request, res: Response) {
         }
 
         const automation = await prisma.automation.update({
-            where: { id: automationId },
+            where: { id: automationId, userId },
             data: { isActive: willBeActive }
         });
 
