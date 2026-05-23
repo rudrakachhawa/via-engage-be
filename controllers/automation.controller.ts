@@ -9,6 +9,7 @@ async function createAutomation(req: Request, res: Response) {
             data: {
                 userId: (req as any).user.id,
                 name: 'Untitled',
+                description: 'Add some information about this automation',
                 isActive: false
             }
         });
@@ -31,7 +32,8 @@ async function getAutomations(req: Request, res: Response) {
             include: {
                 _count: {
                     select: { events: true }
-                }
+                },
+                instaAccount: true,
             }
         });
 
@@ -51,14 +53,16 @@ async function getAutomation(req: Request, res: Response) {
         const automation = await prisma.automation.findUnique({
             where: { id: typeof id === 'string' ? id : id[0], userId },
             include: {
+                instaAccount: true,
                 _count: {
                     select: { events: true }
                 },
                 replies: {
                     orderBy: { order: 'asc' }
-                }
+                },
             }
         });
+
 
         if (!automation) {
             return res.status(404).json({ error: 'Automation not found' });
