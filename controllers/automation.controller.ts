@@ -56,10 +56,7 @@ async function getAutomation(req: Request, res: Response) {
                 instaAccount: true,
                 _count: {
                     select: { events: true }
-                },
-                replies: {
-                    orderBy: { order: 'asc' }
-                },
+                }
             }
         });
 
@@ -92,7 +89,7 @@ async function updateAutomation(req: Request, res: Response) {
             targetThumbnailUrl,
             keywords,
             isActive,
-            replies,
+            commentReplies,
             igUserId
         } = req.body;
 
@@ -106,15 +103,26 @@ async function updateAutomation(req: Request, res: Response) {
         if (targetContentType !== undefined) updateData.targetContentType = targetContentType;
         if (targetContentUrl !== undefined) updateData.targetContentUrl = targetContentUrl;
         if (targetThumbnailUrl !== undefined) updateData.targetThumbnailUrl = targetThumbnailUrl;
-        if (keywords !== undefined) updateData.keywords = keywords;
+        if (keywords !== undefined) {
+            if (!Array.isArray(keywords)) {
+                return res.status(400).json({ error: 'keywords must be an array' });
+            }
+            updateData.keywords = keywords;
+        }
+        if (commentReplies !== undefined) {
+            if (!Array.isArray(commentReplies)) {
+                return res.status(400).json({ error: 'commentReplies must be an array' });
+            }
+            updateData.commentReplies = commentReplies;
+        }
+
         if (isActive !== undefined) updateData.isActive = isActive;
         if (igUserId !== undefined) updateData.igUserId = igUserId;
 
         // Fetch current automation to know its active state
         const automationId = typeof id === 'string' ? id : id[0];
         const existing = await prisma.automation.findUnique({
-            where: { id: automationId, userId },
-            include: { replies: true }
+            where: { id: automationId, userId }
         });
         if (!existing) {
             return res.status(404).json({ error: 'Automation not found' });
@@ -133,6 +141,8 @@ async function updateAutomation(req: Request, res: Response) {
             const effectiveTargetContentUrl = targetContentUrl !== undefined ? targetContentUrl : existing.targetContentUrl;
             const effectiveTargetThumbnailUrl = targetThumbnailUrl !== undefined ? targetThumbnailUrl : existing.targetThumbnailUrl;
             const effectiveKeywords = keywords !== undefined ? keywords : existing.keywords;
+            const effectiveCommentReplies = commentReplies !== undefined ? commentReplies : existing.commentReplies;
+
             const effectiveIgUserId = igUserId !== undefined ? igUserId : existing.igUserId;
 
             if (
@@ -144,8 +154,8 @@ async function updateAutomation(req: Request, res: Response) {
                 !effectiveTargetContentType ||
                 !effectiveTargetContentUrl ||
                 !effectiveTargetThumbnailUrl ||
-                !effectiveKeywords ||
                 (Array.isArray(effectiveKeywords) && effectiveKeywords.length === 0) ||
+                (Array.isArray(effectiveCommentReplies) && effectiveCommentReplies.length === 0) ||
                 !effectiveIgUserId
             ) {
                 return res.status(400).json({
@@ -155,43 +165,10 @@ async function updateAutomation(req: Request, res: Response) {
         }
         // else: if automation is NOT active and update won't make it active, allow all changes with no checks
 
-        // If replies provided, update AutomationReplies (remove old, add new)
-        if (Array.isArray(replies)) {
-            // Remove all old replies
-            await prisma.automationReply.deleteMany({
-                where: { automationId }
-            });
-            // Add new replies if provided and not empty
-            if (replies.length > 0) {
-                const validReplies = replies
-                    .filter((r: any) => {
-                        if (typeof r === "string") {
-                            return r.trim() !== "";
-                        } else if (r && typeof r === "object" && typeof r.message === "string") {
-                            return r.message.trim() !== "";
-                        }
-                        return false;
-                    })
-                    .map((r: any, idx: number) => ({
-                        automationId,
-                        message: typeof r === "string" ? r : r.message,
-                        order: idx
-                    }));
-                if (validReplies.length > 0) {
-                    await prisma.automationReply.createMany({
-                        data: validReplies,
-                        skipDuplicates: true
-                    });
-                }
-            }
-
-        }
-
         const automation = await prisma.automation.update({
             where: { id: automationId, userId },
             data: updateData,
             include: {
-                replies: true,
                 _count: { select: { events: true } }
             }
         });

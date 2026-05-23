@@ -15,7 +15,7 @@ model User {
   firebaseUuid String  @unique
 
   instaAccounts      InstaAccount[]
-  instaAccountOauths InstaAccountOauth[]  // ← array
+  instaAccountOauths InstaAccountOauth[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -37,9 +37,9 @@ model InstaAccount {
 }
 
 model InstaAccountOauth {
-  id          String @id @default(cuid())  // ← surrogate PK
+  id          String @id @default(cuid())
   userId      String
-  igUserId    String @unique               // ← one token per IG account
+  igUserId    String @unique
   accessToken String
   expires_in  Int
   expiresAt   DateTime?
@@ -48,7 +48,7 @@ model InstaAccountOauth {
 }
 
 model Automation {
-  id           String       @id @default(cuid())
+  id           String        @id @default(cuid())
   userId       String?
   igUserId     String?
   instaAccount InstaAccount? @relation(fields: [igUserId], references: [igUserId], onDelete: Cascade)
@@ -59,6 +59,8 @@ model Automation {
   triggerType        TriggerType?
   keywords           String[]     @default([])
 
+  commentReplies     String[]     @default(["Check your DM"])
+
   targetContentId    String?
   targetContentType  ContentType?
   targetContentUrl   String?
@@ -66,22 +68,10 @@ model Automation {
 
   isActive Boolean @default(false)
 
-  replies AutomationReply[]
-  events  EventQueue[]
+  events EventQueue[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-}
-
-model AutomationReply {
-  id           String     @id @default(cuid())
-  automationId String
-  automation   Automation @relation(fields: [automationId], references: [id], onDelete: Cascade)
-
-  message String
-  order   Int    @default(0)
-
-  createdAt DateTime @default(now())
 }
 
 model EventQueue {
