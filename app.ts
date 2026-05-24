@@ -19,7 +19,8 @@ app.use((req, res, next) => {
     "http://localhost:3000",
     "https://via-engage-98n76n77b-rudrakshkachhawa-9620s-projects.vercel.app",
     "https://via-engage-fe.vercel.app",
-    "https://engage-via-dm.rudrakshkachhawa.workers.dev"
+    "https://engage-via-dm.rudrakshkachhawa.workers.dev",
+    "https://ezzzdm.org"
   ];
 
   const origin = req.headers.origin;
