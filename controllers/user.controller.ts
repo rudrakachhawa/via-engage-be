@@ -54,7 +54,6 @@ const removeInstaAccount = async (req: Request, res: Response) => {
         return res.status(400).json({ error: "Instagram account ID is required" });
     }
     try {
-        // Update all automation records where igUserId matches and owned by user:
         const { count } = await prisma.automation.updateMany({
             where: {
                 userId,
