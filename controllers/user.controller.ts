@@ -76,6 +76,12 @@ const removeInstaAccount = async (req: Request, res: Response) => {
             }
         })
 
+        await prisma.instaAccountOauth.delete({
+            where: {
+                igUserId: igAccountId
+            }
+        })
+
         return res.status(200).json({
             success: true,
             updatedAutomations: count,
