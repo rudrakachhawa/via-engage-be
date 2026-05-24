@@ -11,6 +11,7 @@ import userRouter from './routes/user.route'
 import mediaRouter from './routes/media.route'
 import automationRouter from './routes/automation.route'
 import indexRouter from './routes/index';
+import metaEventsRouter from './routes/metaEvents.route'
 
 const app = express();
 
@@ -60,6 +61,7 @@ app.use('/insta-oauth', instaOauthRouter);
 app.use('/user', userRouter);
 app.use('/media', mediaRouter)
 app.use('/automation', automationRouter)
+app.use('/meta-events', metaEventsRouter)
 
 // catch 404 and forward to error handler
 app.use(function (req: Request, res: Response, next: NextFunction) {
