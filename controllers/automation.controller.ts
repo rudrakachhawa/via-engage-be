@@ -172,12 +172,22 @@ async function toggleAutomation(req: Request, res: Response) {
 
         const willBeActive = !current.isActive;
         if (willBeActive) {
-            const requiredFields = [
-                'triggerType', 'messageTemplate', 'targetContentId', 'targetContentType', 'targetContentUrl', 'igUserId'
-            ];
+            let requiredFields: string[] = [];
+            let errorMsg = '';
+
+            if (current.triggerType === 'DM') {
+                requiredFields = ['igUserId', 'keywords', 'messageTemplate'];
+                errorMsg = "All fields (igUserId, keywords, messageTemplate) must be present to publish DM automation";
+            } else {
+                requiredFields = [
+                    'triggerType', 'messageTemplate', 'targetContentId', 'targetContentType', 'targetContentUrl', 'igUserId'
+                ];
+                errorMsg = "All fields (triggerType, messageTemplate, targetContentId, targetContentType, targetContentUrl, igUserId) must be present to publish automation";
+            }
+
             if (!hasAllRequiredFields(current, requiredFields)) {
                 return res.status(400).json({
-                    error: 'All fields (triggerType, messageTemplate, targetContentId, targetContentType, targetContentUrl, igUserId) must be present to publish automation'
+                    error: errorMsg
                 });
             }
         }

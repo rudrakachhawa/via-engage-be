@@ -12,5 +12,4 @@ RUN npm run build
 
 EXPOSE 8080
 
-# run migrations then start the server
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/app.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy && npm run start:all"]

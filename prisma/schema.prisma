@@ -33,7 +33,7 @@ model InstaAccount {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   automations Automation[]
-  events      EventQueue[]
+  events      MetaEvents[]
 }
 
 model InstaAccountOauth {
@@ -68,13 +68,13 @@ model Automation {
 
   isActive Boolean @default(false)
 
-  events EventQueue[]
+  events MetaEvents[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
-model EventQueue {
+model MetaEvents {
   id           String       @id @default(cuid())
   igUserId     String
   instaAccount InstaAccount @relation(fields: [igUserId], references: [igUserId], onDelete: Cascade)
@@ -88,22 +88,22 @@ model EventQueue {
   commentId         String?
   mediaId           String?
   commentText       String?
-  rawPayload        Json
+  rawPayload        Json?
 
   status   EventStatus @default(PENDING)
   priority Int         @default(2)
 
-  triggeredAt DateTime
-  expiresAt   DateTime
+  scheduledFor DateTime?
+  expiresAt   DateTime?
 
   attempts        Int       @default(0)
   lastAttemptedAt DateTime?
   errorLog        String?
+  dedupeKey String? @unique
+  jobId String?
+  processedAt DateTime?
 
   createdAt DateTime @default(now())
-
-  @@index([status, priority, triggeredAt])
-  @@index([igUserId, status])
 }
 
 enum TriggerType {
@@ -127,4 +127,5 @@ enum EventStatus {
   COMMENT_REPLIED
   FAILED
   EXPIRED
+  COMPLETED
 }

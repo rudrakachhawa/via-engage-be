@@ -12,6 +12,7 @@ import mediaRouter from './routes/media.route'
 import automationRouter from './routes/automation.route'
 import indexRouter from './routes/index';
 import metaEventsRouter from './routes/metaEvents.route'
+import testRoutes from './routes/test.routes'
 
 const app = express();
 
@@ -62,6 +63,7 @@ app.use('/user', userRouter);
 app.use('/media', mediaRouter)
 app.use('/automation', automationRouter)
 app.use('/meta-events', metaEventsRouter)
+app.use('/test', testRoutes)
 
 // catch 404 and forward to error handler
 app.use(function (req: Request, res: Response, next: NextFunction) {
@@ -79,7 +81,7 @@ app.use(function (err: any, req: Request, res: Response, next: NextFunction) {
   res.render('error');
 });
 
-const PORT = process.env.PORT || 8080
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`))
+// const PORT = process.env.PORT || 8080
+// app.listen(PORT, () => console.log(`Server running on port ${PORT}`))
 
 export default app;
