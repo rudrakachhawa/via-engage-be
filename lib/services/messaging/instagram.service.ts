@@ -2,7 +2,6 @@ import axios from "axios";
 
 export async function sendInstagramDM(
     accessToken: string,
-    _igUserId: string, // Will be ignored in this implementation, to match /me/messages usage
     recipientId: string,
     message: string
 ) {

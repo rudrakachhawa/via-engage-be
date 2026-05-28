@@ -15,8 +15,49 @@ export async function createEventQueue(
 
         rawPayload: any
 
+        triggerType: 'DM' | 'STORY_REPLY' | 'COMMENT'
+
+        commentId?: string
+
+        mediaId?: string
+
     }
 ) {
+    console.log({
+
+        igUserId:
+            data.igUserId,
+
+        automationId:
+            data.automationId,
+
+        triggerType:
+            data.triggerType,
+
+        recipientIgId:
+            data.recipientIgId,
+
+        commentText:
+            data.message,
+
+        rawPayload:
+            data.rawPayload,
+
+        dedupeKey:
+            data.dedupeKey,
+
+        expiresAt:
+            new Date(
+                Date.now() +
+                1000 *
+                60 *
+                60 *
+                24
+            ),
+        commentId: data.commentId,
+        mediaId: data.mediaId
+
+    }, "Meta event payload")
     return prisma.metaEvents.create({
 
         data: {
@@ -28,7 +69,7 @@ export async function createEventQueue(
                 data.automationId,
 
             triggerType:
-                "DM",
+                data.triggerType,
 
             recipientIgId:
                 data.recipientIgId,
@@ -49,7 +90,9 @@ export async function createEventQueue(
                     60 *
                     60 *
                     24
-                )
+                ),
+            commentId: data.commentId,
+            mediaId: data.mediaId
 
         }
 

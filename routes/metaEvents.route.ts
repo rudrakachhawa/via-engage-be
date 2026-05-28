@@ -1,8 +1,5 @@
 import express, { Request, Response } from "express";
-import { findDmAutomation } from "../lib/services/webhook/automation.service";
-import { createEventQueue } from "../lib/services/webhook/event.service";
-import { outboundQueue } from "../queues/outbound.queue";
-import { parseDmWebhook } from "../lib/services/webhook/parser.service";
+import { processWebhookPayload } from "../lib/services/webhook/dispatcher.service";
 
 const router = express.Router();
 
@@ -29,76 +26,9 @@ router.post(
 
         try {
 
-            const payload =
-                req.body;
-
-            const events =
-                parseDmWebhook(
-                    payload
-                )
-
-            for (
-                const webhookEvent
-                of events
-            ) {
-
-                const automation =
-                    await findDmAutomation(
-
-                        webhookEvent.igUserId,
-
-                        webhookEvent.message
-
-                    )
-
-                if (!automation) {
-
-                    continue
-
-                }
-
-                const event =
-                    await createEventQueue({
-
-                        igUserId:
-                            webhookEvent.igUserId,
-
-                        automationId:
-                            automation.id,
-
-                        recipientIgId:
-                            webhookEvent.senderId,
-
-                        message:
-                            webhookEvent.message,
-
-                        dedupeKey:
-                            webhookEvent.messageId,
-
-                        rawPayload:
-                            payload
-
-                    })
-                await outboundQueue.add(
-
-                    "process-event",
-
-                    {
-
-                        eventId:
-                            event.id
-
-                    },
-
-                    {
-
-                        jobId: `event${event.dedupeKey}`
-
-                    }
-
-                )
-
-            }
+            await processWebhookPayload(
+                req.body
+            )
 
             return res
                 .status(200)
@@ -110,9 +40,9 @@ router.post(
 
         }
 
-        catch (error) {
+        catch (err) {
 
-            console.log(error)
+            console.log(err)
 
             return res
                 .status(500)

@@ -9,8 +9,6 @@ router.post(
     verifyFirebaseToken,
     async (req: Request, res: Response) => {
         // req.user should have been attached by the middleware (see middlewares/auth.middleware.ts)
-        console.log((req as any).user);
-
         return res.json({
             success: true,
             user: (req as any).user,

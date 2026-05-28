@@ -73,3 +73,45 @@ export async function findStoryAutomation(
             )
     )
 }
+
+export async function findCommentAutomation(
+    igUserId: string,
+
+    mediaId: string,
+
+    comment: string
+) {
+
+    const automations =
+        await prisma.automation.findMany({
+
+            where: {
+
+                igUserId,
+
+                triggerType:
+                    "COMMENT",
+
+                targetContentId:
+                    mediaId,
+
+                isActive: true
+
+            }
+
+        })
+
+    const normalized =
+        normalize(comment)
+
+    return automations.find(
+        (automation: Automation) =>
+            automation.keywords.some(
+                (keyword: string) =>
+                    normalized.includes(
+                        normalize(keyword)
+                    )
+            )
+    )
+
+}
