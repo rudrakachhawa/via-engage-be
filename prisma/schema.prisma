@@ -102,7 +102,6 @@ model MetaEvents {
   dedupeKey String? @unique
   jobId String?
   processedAt DateTime?
-  errorLog Json?
 
   createdAt DateTime @default(now())
 }
