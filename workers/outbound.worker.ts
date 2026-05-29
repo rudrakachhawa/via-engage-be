@@ -26,7 +26,8 @@ import {
 
 import {
 
-    replyToComment
+    privateDMReplyToComment,
+    publicReplyToComment
 
 }
 
@@ -173,7 +174,6 @@ const worker = new Worker(
 
 
             let response;
-            console.log(event.triggerType, "Trigger type")
 
             switch (
 
@@ -208,7 +208,7 @@ const worker = new Worker(
                             "Check your DM"
 
 
-                    await replyToComment(
+                    await publicReplyToComment(
 
                         oauth.accessToken,
 
@@ -220,16 +220,12 @@ const worker = new Worker(
 
 
                     response =
-                        await sendInstagramDM(
-
+                        await privateDMReplyToComment(
                             oauth.accessToken,
-
-                            event.recipientIgId,
-
-                            automation.messageTemplate || ""
-
+                            event.commentId || "",
+                            automation.messageTemplate || "",
+                            event.igUserId
                         )
-
                     break
 
                 }
@@ -286,22 +282,9 @@ const worker = new Worker(
             })
 
 
-            console.log(
-
-                "Processed",
-
-                event.id,
-
-                response
-
-            )
-
         }
 
         catch (error) {
-
-            console.log(error)
-
 
             await prisma.metaEvents.update({
 
@@ -315,7 +298,8 @@ const worker = new Worker(
                 data: {
 
                     status:
-                        "FAILED"
+                        "FAILED",
+                    errorLog: (error as any).toString()
 
                 }
 

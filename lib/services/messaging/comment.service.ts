@@ -1,6 +1,6 @@
 import axios from "axios";
 
-export async function replyToComment(
+export async function publicReplyToComment(
 
     accessToken: string,
 
@@ -23,8 +23,34 @@ export async function replyToComment(
                 }
             }
         )
-   
+
 
     return response.data
 
+}
+
+export async function privateDMReplyToComment(
+    accessToken: string,
+    comment_id: string,
+    message: string,
+    igUserId: string
+) {
+    const response = await axios.post(
+        `https://graph.instagram.com/v25.0/${igUserId}/messages`,
+        {
+            message: {
+                text: message
+            },
+            recipient: {
+                comment_id: comment_id
+            }
+        },
+        {
+            headers: {
+                "Authorization": `Bearer ${accessToken}`,
+                "Content-Type": "application/json"
+            }
+        }
+    );
+    return response.data;
 }
