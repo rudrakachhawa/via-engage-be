@@ -381,7 +381,3 @@ worker.on(
     }
 
 )
-
-worker.on("stalled", (jobId) => {
-    console.log("Stalled job:", jobId)
-})

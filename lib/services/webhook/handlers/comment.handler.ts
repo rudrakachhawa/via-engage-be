@@ -38,14 +38,7 @@ export async function processCommentEvents(
             continue
 
         }
-        // Check if this job already exists in the queue
-        const jobId = `comment-${event.dedupeKey}`
-        const existingJob = await outboundQueue.getJob(jobId)
 
-        if (existingJob) {
-            console.log("Duplicate job skipped:", jobId)
-            continue  // skip DB insert entirely
-        }
         const dbEvent =
             await createEventQueue({
 
@@ -93,7 +86,7 @@ export async function processCommentEvents(
 
                 jobId:
                     `comment-${dbEvent.dedupeKey}`,
-                removeOnComplete: true
+                removeOnComplete: 1000
 
             }
         )
