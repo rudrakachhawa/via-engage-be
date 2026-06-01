@@ -25,7 +25,7 @@ router.post(
     async (req, res) => {
 
         try {
-
+            console.log(JSON.stringify(req.body, null, 2));
             await processWebhookPayload(
                 req.body
             )

@@ -171,6 +171,11 @@ export function parseCommentWebhook(
 
             }
 
+            // Skip if there is a parent_id (i.e., it's a reply, not a top-level comment)
+            if ("parent_id" in change.value) {
+                continue
+            }
+
             const value =
                 change.value
 
@@ -218,17 +223,59 @@ export function parseCommentWebhook(
 
 }
 
+export function parsePostBackWebhook(
+    payload: any
+) {
+    const events: any[] = []
+
+    const entries = payload?.entry || []
+
+    for (const entry of entries) {
+        // Per the sample payload, we should look at "messaging" array for postback, not "changes"
+        const messagingArr = entry.messaging || []
+
+        for (const messaging of messagingArr) {
+            if (!messaging.postback) continue
+
+            const postback = messaging.postback
+            let postbackPayload: any = {}
+
+            // Try to parse postback.payload if it's a stringified JSON
+            if (typeof postback.payload === "string") {
+                try {
+                    postbackPayload = JSON.parse(postback.payload)
+                } catch {
+                    postbackPayload = {}
+                }
+            } else if (typeof postback.payload === "object" && postback.payload) {
+                postbackPayload = postback.payload
+            }
+
+            events.push({
+                igUserId: entry.id,
+                senderId: messaging.sender?.id,
+                commentId: postbackPayload.commentId ?? null,
+                automationId: postbackPayload.automationId ?? null,
+                mid: postback.mid ?? null,
+                title: postback.title ?? null,
+                dedupeKey: messaging.timestamp?.toString() ?? entry.time?.toString() ?? undefined,
+                messageId: messaging.timestamp?.toString() ?? entry.time?.toString() ?? undefined,
+                payload: postbackPayload
+            })
+        }
+    }
+
+    return events
+}
 
 export function detectWebhookTypes(
     payload: any
 ) {
 
     const result = {
-
         hasMessaging: false,
-
-        hasComments: false
-
+        hasComments: false,
+        isPostBack: false
     }
 
     const entries =
@@ -243,16 +290,21 @@ export function detectWebhookTypes(
             entry.messaging?.length
         ) {
 
-            result.hasMessaging =
-                true
+            result.hasMessaging = true
+
+            if (
+                entry.messaging[0]?.postback
+            ) {
+                result.isPostBack = true
+                result.hasMessaging = false
+            }
         }
 
         if (
             entry.changes?.length
         ) {
 
-            result.hasComments =
-                true
+            result.hasComments = true
         }
 
     }

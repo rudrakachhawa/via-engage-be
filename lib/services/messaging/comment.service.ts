@@ -32,14 +32,15 @@ export async function publicReplyToComment(
 export async function privateDMReplyToComment(
     accessToken: string,
     comment_id: string,
-    message: string,
+    messagePayload: { [key: string]: any; },
     igUserId: string
 ) {
+    console.log(messagePayload)
     const response = await axios.post(
         `https://graph.instagram.com/v25.0/${igUserId}/messages`,
         {
-            message: {
-                text: message
+            "message": {
+                ...messagePayload
             },
             recipient: {
                 comment_id: comment_id

@@ -7,377 +7,290 @@ import prisma from "../config/prisma";
 import { redis } from "../config/redis";
 
 import {
-
-    canSendMessage,
-
-    incrementMessageCount
-
-}
-
-    from "../lib/services/rate-limit/rate-limit.service";
+  canSendMessage,
+  incrementMessageCount,
+} from "../lib/services/rate-limit/rate-limit.service";
 
 import {
-
-    sendInstagramDM
-
-}
-
-    from "../lib/services/messaging/instagram.service";
-
-import {
-
-    privateDMReplyToComment,
-    publicReplyToComment
-
-}
-
-    from "../lib/services/messaging/comment.service";
-
+  privateDMReplyToComment,
+  publicReplyToComment,
+} from "../lib/services/messaging/comment.service";
+import { sendInstagramDM } from "../lib/services/messaging/messaging.service";
+import { getSenderProfileInfo } from "../lib/services/messaging/instagram.service";
 
 const worker = new Worker(
+  "outbound-messages",
 
-    "outbound-messages",
+  async (job) => {
+    console.log("Job Received", job.id);
+    const { eventId } = job.data;
 
-    async (job) => {
-        console.log(
-            "Job Received",
-            job.id
-        )
-        const {
+    const event = await prisma.metaEvents.findUnique({
+      where: {
+        id: eventId,
+      },
+    });
 
-            eventId
+    if (!event) {
+      return;
+    }
 
-        } = job.data;
+    try {
+      await prisma.metaEvents.update({
+        where: {
+          id: event.id,
+        },
 
+        data: {
+          status: "PROCESSING",
+        },
+      });
 
-        const event =
-            await prisma.metaEvents.findUnique({
+      const rateLimit = await canSendMessage(event.igUserId);
 
-                where: {
+      if (!rateLimit.allowed) {
+        console.log("Rate Limited");
 
-                    id: eventId
+        const nextHour = new Date();
 
-                }
+        nextHour.setHours(nextHour.getHours() + 1);
 
-            })
+        nextHour.setMinutes(0, 0, 0);
 
+        await job.moveToDelayed(nextHour.getTime(), job.token);
 
-        if (!event) {
+        return;
+      }
 
-            return
+      const automation = await prisma.automation.findUnique({
+        where: {
+          id: event.automationId,
+        },
+      });
 
-        }
+      if (!automation) {
+        throw new Error("Automation missing");
+      }
 
+      const oauth = await prisma.instaAccountOauth.findUnique({
+        where: {
+          igUserId: event.igUserId,
+        },
+      });
 
-        try {
+      if (!oauth) {
+        throw new Error("OAuth missing");
+      }
 
-            await prisma.metaEvents.update({
+      let response;
 
-                where: {
+      switch (event.triggerType) {
+        case 'POSTBACK_MESSAGE': {
 
-                    id: event.id
+          const convertToFollower = automation.convertToFollower
+          if (convertToFollower) {
 
-                },
-
-                data: {
-
-                    status: "PROCESSING"
-
-                }
-
-            })
-
-
-            const rateLimit =
-                await canSendMessage(
-                    event.igUserId
-                )
-
-
-            if (
-
-                !rateLimit.allowed
-
-            ) {
-
-                console.log(
-                    "Rate Limited"
-                )
-
-                const nextHour =
-                    new Date()
-
-                nextHour.setHours(
-                    nextHour.getHours() + 1
-                )
-
-                nextHour.setMinutes(
-                    0,
-                    0,
-                    0
-                )
-
-                await job.moveToDelayed(
-                    nextHour.getTime(),
-                    job.token
-                )
-
-                return
-
-            }
-
-
-            const automation =
-                await prisma.automation.findUnique({
-
-                    where: {
-
-                        id:
-                            event.automationId
-
-                    }
-
-                })
-
-
-            if (!automation) {
-
-                throw new Error(
-                    "Automation missing"
-                )
-
-            }
-
-
-            const oauth =
-                await prisma
-                    .instaAccountOauth
-                    .findUnique({
-
-                        where: {
-
-                            igUserId:
-                                event.igUserId
-
-                        }
-
-                    })
-
-
-            if (!oauth) {
-
-                throw new Error(
-                    "OAuth missing"
-                )
-
-            }
-
-
-            let response;
-
-            switch (
-
-            event.triggerType
-
-            ) {
-
-                case "COMMENT": {
-
-                    const replyMessage =
-
-                        automation.commentReplies?.length
-
-                            ?
-
-                            automation.commentReplies[
-
-                            Math.floor(
-
-                                Math.random()
-
-                                *
-
-                                automation.commentReplies.length
-
-                            )
-
-                            ]
-
-                            :
-
-                            "Check your DM"
-
-
-                    await publicReplyToComment(
-
-                        oauth.accessToken,
-
-                        event.commentId!,
-
-                        replyMessage
-
-                    )
-
-
-                    response =
-                        await privateDMReplyToComment(
-                            oauth.accessToken,
-                            event.commentId || "",
-                            automation.messageTemplate || "",
-                            event.igUserId
-                        )
-                    break
-
-                }
-
-
-                case "DM":
-
-                case "STORY_REPLY": {
-
-                    response =
-                        await sendInstagramDM(
-
-                            oauth.accessToken,
-
-                            event.recipientIgId,
-
-                            automation.messageTemplate || ""
-
-                        )
-
-                    break
-
-                }
-
-            }
-
-
-            await incrementMessageCount(
-
-                rateLimit.key
-
+            const senderProfileInfo = await getSenderProfileInfo(
+              event.recipientIgId || "",
+              oauth.accessToken
             )
+            if (!senderProfileInfo.is_user_follow_business) {
+              const convertToFollowerMessage = automation.convertToFollowerMessage as any;
 
+              const messageText =
+                typeof convertToFollowerMessage === "object" && convertToFollowerMessage !== null && "message" in convertToFollowerMessage
+                  ? (convertToFollowerMessage.message as string)
+                  : "Please follow our profile!";
 
-            await prisma.metaEvents.update({
+              const buttons =
+                typeof convertToFollowerMessage === "object" &&
+                  convertToFollowerMessage !== null &&
+                  Array.isArray((convertToFollowerMessage as any).buttons)
+                  ? (convertToFollowerMessage as any).buttons
+                  : [];
 
-                where: {
-
-                    id:
-                        event.id
-
+              const messagePayload = {
+                attachment: {
+                  type: "template",
+                  payload: {
+                    template_type: "button",
+                    text: messageText,
+                    buttons: [
+                      {
+                        type: "web_url",
+                        url: `https://instagram.com/${senderProfileInfo?.username || ""}`,
+                        title: buttons[0]?.text || "Visit Profile",
+                      },
+                      {
+                        type: "postback",
+                        payload: JSON.stringify({
+                          automationId: automation.id,
+                          action: "CONFIRM_FOLLOW",
+                        }),
+                        title: buttons[1]?.text || "I'm Following",
+                      },
+                    ],
+                  },
                 },
+              };
 
-                data: {
+              response = await sendInstagramDM(
+                oauth.accessToken,
+                event.recipientIgId,
+                messagePayload
+              );
+              break
+            } else {
+              response = await sendInstagramDM(
+                oauth.accessToken,
+                event.recipientIgId,
+                { text: automation.messageTemplate }
+              );
+              break
+            }
+          } else {
+            response = await sendInstagramDM(
+              oauth.accessToken,
+              event.recipientIgId,
+              { text: automation.messageTemplate }
+            );
+          }
+          break;
+        }
+        case "COMMENT": {
+          const replyMessage = (automation.commentReplies as any[])?.length
+            ? (automation.commentReplies as any[])[
+            Math.floor(
+              Math.random() * (automation.commentReplies as any[]).length,
+            )
+            ]
+            : "Check your DM";
 
-                    status:
-                        "COMPLETED",
+          await publicReplyToComment(
+            oauth.accessToken,
 
-                    processedAt:
-                        new Date()
+            event.commentId!,
 
-                }
+            replyMessage,
+          );
 
-            })
-
-
+          const messagePayload =
+            (automation.conversationStarter as any)?.message ||
+              (automation.conversationStarter as any)?.buttonText
+              ? {
+                attachment: {
+                  type: "template",
+                  payload: {
+                    template_type: "button",
+                    text: (automation.conversationStarter as any)
+                      ?.message as string,
+                    buttons: [
+                      {
+                        type: "postback",
+                        payload: JSON.stringify({
+                          automationId: automation.id,
+                          commentId: event.commentId,
+                        }),
+                        title: (automation.conversationStarter as any)
+                          ?.buttonText as string,
+                      },
+                    ],
+                  },
+                },
+              }
+              : { text: automation.messageTemplate };
+          response = await privateDMReplyToComment(
+            oauth.accessToken,
+            event.commentId || "",
+            messagePayload,
+            event.igUserId,
+          );
+          break;
         }
 
-        catch (error) {
+        case "DM":
 
-            await prisma.metaEvents.update({
+        case "STORY_REPLY": {
+          const messagePayload = {
+            text: automation.messageTemplate
+          }
+          response = await sendInstagramDM(
+            oauth.accessToken,
+            event.recipientIgId,
+            messagePayload
+          );
 
-                where: {
-
-                    id:
-                        event.id
-
-                },
-
-                data: {
-
-                    status:
-                        "FAILED",
-                    errorLog: (error as any).toString()
-
-                }
-
-            })
-
-
-            throw error
-
+          break;
         }
+      }
 
-    },
+      await incrementMessageCount(rateLimit.key);
 
-    {
+      await prisma.metaEvents.update({
+        where: {
+          id: event.id,
+        },
 
-        connection:
-            redis,
+        data: {
+          status: "COMPLETED",
 
-        concurrency:
-            3
+          processedAt: new Date(),
+        },
+      });
+    } catch (error) {
+      console.log(error)
+      await prisma.metaEvents.update({
+        where: {
+          id: event.id,
+        },
+
+        data: {
+          status: "FAILED",
+          errorLog: (error as any).toString(),
+        },
+      });
+
+      throw error;
     }
+  },
 
-)
+  {
+    connection: redis,
 
+    concurrency: 3,
+  },
+);
 
-console.log(
-
-    "Outbound Worker Started"
-
-)
+console.log("Outbound Worker Started");
 
 worker.on(
+  "completed",
 
-    "completed",
-
-    (job) => {
-
-        console.log(
-
-            `Completed Job ${job.id}`
-
-        )
-
-    }
-
-)
+  (job) => {
+    console.log(`Completed Job ${job.id}`);
+  },
+);
 
 worker.on(
+  "failed",
 
-    "failed",
+  (job, err) => {
+    console.log(
+      `Failed Job ${job?.id}`,
 
-    (job, err) => {
-
-        console.log(
-
-            `Failed Job ${job?.id}`,
-
-            err
-
-        )
-
-    }
-
-)
+      err,
+    );
+  },
+);
 
 worker.on(
+  "error",
 
-    "error",
+  (err) => {
+    console.log(
+      "Worker Error",
 
-    (err) => {
-
-        console.log(
-
-            "Worker Error",
-
-            err
-
-        )
-
-    }
-
-)
+      err,
+    );
+  },
+);

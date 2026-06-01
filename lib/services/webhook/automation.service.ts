@@ -115,3 +115,19 @@ export async function findCommentAutomation(
     )
 
 }
+
+export async function findAutomationById(automationId: string) {
+    const automation = await prisma.automation.findUnique({
+
+        where: {
+
+            id: automationId,
+
+            isActive: true
+
+        }
+
+    })
+    return automation
+
+}

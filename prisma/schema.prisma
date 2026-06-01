@@ -59,7 +59,7 @@ model Automation {
   triggerType        TriggerType?
   keywords           String[]     @default([])
 
-  commentReplies     String[]     @default(["Check your DM"])
+  commentReplies     Json?
 
   targetContentId    String?
   targetContentType  ContentType?
@@ -67,7 +67,9 @@ model Automation {
   targetThumbnailUrl String?
 
   isActive Boolean @default(false)
-
+  conversationStarter Json?
+  convertToFollower Boolean? @default(false)
+  convertToFollowerMessage Json?
   events MetaEvents[]
 
   createdAt DateTime @default(now())
@@ -112,6 +114,7 @@ enum TriggerType {
   LIVE_COMMENT
   STORY_REPLY
   MENTION
+  POSTBACK_MESSAGE
 }
 
 enum ContentType {

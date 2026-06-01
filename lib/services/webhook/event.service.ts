@@ -15,7 +15,7 @@ export async function createEventQueue(
 
         rawPayload: any
 
-        triggerType: 'DM' | 'STORY_REPLY' | 'COMMENT'
+        triggerType: 'DM' | 'STORY_REPLY' | 'COMMENT' | 'POSTBACK_MESSAGE'
 
         commentId?: string
 

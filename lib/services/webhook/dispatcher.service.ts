@@ -1,5 +1,6 @@
 import { processCommentEvents } from "./handlers/comment.handler"
 import { processDmEvents } from "./handlers/dm.handler"
+import { processPostBackEvents } from "./handlers/postbackdm.handler"
 import { processStoryEvents } from "./handlers/story.handler"
 import {
     parseDmWebhook,
@@ -8,7 +9,8 @@ import {
 
     parseCommentWebhook,
 
-    detectWebhookTypes
+    detectWebhookTypes,
+    parsePostBackWebhook
 
 }
     from "./parser.service"
@@ -23,7 +25,7 @@ export async function processWebhookPayload(
         detectWebhookTypes(
             payload
         )
-
+    console.log(types, "types");
     if (
         types.hasMessaging
     ) {
@@ -64,4 +66,16 @@ export async function processWebhookPayload(
 
     }
 
+    if (
+        types.isPostBack
+    ) {
+
+        await processPostBackEvents(
+
+            parsePostBackWebhook(
+                payload
+            ),
+            payload
+        )
+    }
 }
