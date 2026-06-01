@@ -37,9 +37,14 @@ async function getAutomations(req: Request, res: Response) {
         const automations = await prisma.automation.findMany({
             where: { userId },
             orderBy: { createdAt: 'desc' },
-            include: {
-                _count: { select: { events: true } },
-                instaAccount: true
+            select: {
+                id: true,
+                instaAccount: true,
+                name: true,
+                description: true,
+                triggerType: true,
+                isActive: true,
+                createdAt: true
             }
         });
         return res.status(200).json({ automations });
@@ -108,18 +113,74 @@ async function updateAutomation(req: Request, res: Response) {
         // Check for required fields if automation will be active
         const willBeActive = isActive === true || (isActive === undefined && existing.isActive === true);
         if (willBeActive) {
-            // Compute effective values (new or old)
+            // Compute effective values (incoming values overwrite existing)
             const effective: Record<string, any> = {};
             for (const field of fields) {
                 effective[field] = req.body[field] !== undefined ? req.body[field] : (existing as any)[field];
             }
-            const required = [
-                'name', 'description', 'triggerType', 'messageTemplate', 'targetContentId',
-                'targetContentType', 'targetContentUrl', 'targetThumbnailUrl', 'keywords', 'commentReplies', 'igUserId'
-            ];
-            if (!hasAllRequiredFields(effective, required)) {
+
+            let required: string[] = [];
+            let missing: string[] = [];
+
+            switch (effective.triggerType) {
+                case 'DM':
+                    required = ['igUserId', 'name', 'triggerType', 'messageTemplate', 'keywords'];
+                    break;
+                case 'STORY':
+                    required = ['igUserId', 'name', 'triggerType', 'messageTemplate', 'keywords', 'targetContentId'];
+                    break;
+                case 'COMMENT':
+                    required = [
+                        'igUserId', 'name', 'triggerType', 'messageTemplate', 'keywords', 'targetContentId',
+                        'commentReplies', 'conversationStarter'
+                    ];
+                    // Check conversationStarter.buttonText specifically
+                    if (!effective.conversationStarter || typeof effective.conversationStarter !== 'object' || !effective.conversationStarter.buttonText || !effective.conversationStarter.message) {
+                        missing.push('conversationStarter');
+                    }
+                    break;
+                default:
+                    // fallback, e.g. block activation due to missing/invalid triggerType
+                    required = ['name', 'triggerType', 'messageTemplate', 'keywords'];
+            }
+
+            for (const field of required) {
+                if (
+                    effective[field] === undefined ||
+                    effective[field] === null ||
+                    (Array.isArray(effective[field]) && effective[field].length === 0) ||
+                    (typeof effective[field] === "string" && effective[field].trim() === "")
+                ) {
+                    missing.push(field);
+                }
+            }
+
+            // For 'COMMENT', also check convertToFollower rules
+            if (effective.triggerType === 'COMMENT') {
+                if (effective.convertToFollower) {
+                    // convertToFollowerMessage must have message and buttons
+                    if (
+                        !effective.convertToFollowerMessage ||
+                        typeof effective.convertToFollowerMessage !== 'object' ||
+                        !effective.convertToFollowerMessage.message
+                    ) {
+                        missing.push('convertToFollowerMessage');
+                    }
+                    if (
+                        !effective.convertToFollowerMessage ||
+                        typeof effective.convertToFollowerMessage !== 'object' ||
+                        !Array.isArray(effective.convertToFollowerMessage.buttons) ||
+                        effective.convertToFollowerMessage.buttons.length === 0
+                    ) {
+                        missing.push('convertToFollowerMessage');
+                    }
+                }
+            }
+
+            if (missing.length > 0) {
                 return res.status(400).json({
-                    error: 'All fields (name, description, triggerType, messageTemplate, targetContentId, targetContentType, targetContentUrl, targetThumbnailUrl, keywords, commentReplies, igUserId) are required while automation is active'
+                    error: 'Some required fields are missing',
+                    missingFields: missing
                 });
             }
         }
@@ -172,22 +233,81 @@ async function toggleAutomation(req: Request, res: Response) {
 
         const willBeActive = !current.isActive;
         if (willBeActive) {
-            let requiredFields: string[] = [];
-            let errorMsg = '';
+            // Replicate/update the same required field logic as in updateAutomation
+            // These are the fields available to an automation object
+            const fields = [
+                'name', 'description', 'triggerType', 'messageTemplate', 'targetContentId',
+                'targetContentType', 'targetContentUrl', 'targetThumbnailUrl', 'keywords',
+                'commentReplies', 'igUserId', 'conversationStarter', 'convertToFollower', 'convertToFollowerMessage'
+            ];
 
-            if (current.triggerType === 'DM') {
-                requiredFields = ['igUserId', 'keywords', 'messageTemplate'];
-                errorMsg = "All fields (igUserId, keywords, messageTemplate) must be present to publish DM automation";
-            } else {
-                requiredFields = [
-                    'triggerType', 'messageTemplate', 'targetContentId', 'targetContentType', 'targetContentUrl', 'igUserId'
-                ];
-                errorMsg = "All fields (triggerType, messageTemplate, targetContentId, targetContentType, targetContentUrl, igUserId) must be present to publish automation";
+            // Use values from current automation from DB
+            const effective: Record<string, any> = {};
+            for (const field of fields) {
+                effective[field] = (current as any)[field];
             }
 
-            if (!hasAllRequiredFields(current, requiredFields)) {
+            let required: string[] = [];
+            let missing: string[] = [];
+
+            switch (effective.triggerType) {
+                case 'DM':
+                    required = ['igUserId', 'name', 'triggerType', 'messageTemplate', 'keywords'];
+                    break;
+                case 'STORY':
+                    required = ['igUserId', 'name', 'triggerType', 'messageTemplate', 'keywords', 'targetContentId'];
+                    break;
+                case 'COMMENT':
+                    required = [
+                        'igUserId', 'name', 'triggerType', 'messageTemplate', 'keywords', 'targetContentId',
+                        'commentReplies', 'conversationStarter'
+                    ];
+                    // Check conversationStarter.buttonText specifically
+                    if (!effective.conversationStarter || typeof effective.conversationStarter !== 'object' || !effective.conversationStarter.buttonText || !effective.conversationStarter.message) {
+                        missing.push('conversationStarter');
+                    }
+                    break;
+                default:
+                    required = ['name', 'triggerType', 'messageTemplate', 'keywords'];
+            }
+
+            for (const field of required) {
+                if (
+                    effective[field] === undefined ||
+                    effective[field] === null ||
+                    (Array.isArray(effective[field]) && effective[field].length === 0) ||
+                    (typeof effective[field] === "string" && effective[field].trim() === "")
+                ) {
+                    missing.push(field);
+                }
+            }
+
+            // For 'COMMENT', also check convertToFollower rules
+            if (effective.triggerType === 'COMMENT') {
+                if (effective.convertToFollower) {
+                    // convertToFollowerMessage must have message and buttons
+                    if (
+                        !effective.convertToFollowerMessage ||
+                        typeof effective.convertToFollowerMessage !== 'object' ||
+                        !effective.convertToFollowerMessage.message
+                    ) {
+                        missing.push('convertToFollowerMessage');
+                    }
+                    if (
+                        !effective.convertToFollowerMessage ||
+                        typeof effective.convertToFollowerMessage !== 'object' ||
+                        !Array.isArray(effective.convertToFollowerMessage.buttons) ||
+                        effective.convertToFollowerMessage.buttons.length === 0
+                    ) {
+                        missing.push('convertToFollowerMessage');
+                    }
+                }
+            }
+
+            if (missing.length > 0) {
                 return res.status(400).json({
-                    error: errorMsg
+                    error: 'Some required fields are missing',
+                    missingFields: missing
                 });
             }
         }
