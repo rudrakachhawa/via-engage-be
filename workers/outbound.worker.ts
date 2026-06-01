@@ -66,6 +66,9 @@ const worker = new Worker(
         where: {
           id: event.automationId,
         },
+        include: {
+          instaAccount: true
+        }
       });
 
       if (!automation) {
@@ -118,7 +121,7 @@ const worker = new Worker(
                     buttons: [
                       {
                         type: "web_url",
-                        url: `https://instagram.com/${senderProfileInfo?.username || ""}`,
+                        url: `https://instagram.com/${automation.instaAccount?.userName || ""}`,
                         title: buttons[0]?.text || "Visit Profile",
                       },
                       {
