@@ -13,10 +13,10 @@ import automationRouter from './routes/automation.route'
 import indexRouter from './routes/index';
 import metaEventsRouter from './routes/metaEvents.route'
 import testRoutes from './routes/test.routes'
-import { connectRabbitMQ } from './queues/outbound.queue';
+import { connectProducer } from './queues/outbound.queue';
 
 const app = express();
-connectRabbitMQ()
+connectProducer()
 app.use((req, res, next) => {
   const allowedOrigins = [
     "http://localhost:3000",
