@@ -12,6 +12,83 @@ import {
 import { sendInstagramDM } from "../lib/services/messaging/messaging.service";
 import { getSenderProfileInfo } from "../lib/services/messaging/instagram.service";
 
+/**
+ * Send a sequence of messages using Instagram DM API for the automation response flow.
+ */
+async function sendAutomationResponseFlow(responseFlow: any[], accessToken: string, recipientIgId: string) {
+  for (const item of responseFlow) {
+    // Ensure item is a plain object
+    if (item && typeof item === "object" && !Array.isArray(item)) {
+      const messagePayload = { ...item } as Record<string, any>;
+      delete messagePayload.type;
+      await sendInstagramDM(
+        accessToken,
+        recipientIgId,
+        messagePayload
+      );
+    }
+  }
+}
+
+/**
+ * Build convert-to-follower message payload using automation options
+ */
+function buildFollowerMessagePayload(automation: any, buttons: any[], messageText: string) {
+  return {
+    attachment: {
+      type: "template",
+      payload: {
+        template_type: "button",
+        text: messageText,
+        buttons: [
+          {
+            type: "web_url",
+            url: `https://instagram.com/${automation.instaAccount?.userName || ""}`,
+            title: buttons[0]?.text || "Visit Profile",
+          },
+          {
+            type: "postback",
+            payload: JSON.stringify({
+              automationId: automation.id,
+              action: "CONFIRM_FOLLOW",
+            }),
+            title: buttons[1]?.text || "I'm Following",
+          },
+        ],
+      },
+    },
+  };
+}
+
+/**
+ * Build DM reply to comment payload.
+ */
+function buildConversationStarterPayload(automation: any, event: any) {
+  const starter: any = automation.conversationStarter;
+  if (starter?.message || starter?.buttonText) {
+    return {
+      attachment: {
+        type: "template",
+        payload: {
+          template_type: "button",
+          text: starter?.message as string,
+          buttons: [
+            {
+              type: "postback",
+              payload: JSON.stringify({
+                automationId: automation.id,
+                commentId: event.commentId,
+              }),
+              title: starter?.buttonText as string,
+            },
+          ],
+        },
+      },
+    };
+  }
+  return { text: automation.messageTemplate };
+}
+
 export async function startWorker() {
   await connectRabbitMQ();
   const channel = getChannel();
@@ -22,7 +99,7 @@ export async function startWorker() {
     try {
       ({ eventId } = JSON.parse(msg.content.toString()));
     } catch {
-      channel.nack(msg, false, false); // malformed, discard
+      channel.nack(msg, false, false);
       return;
     }
 
@@ -31,7 +108,7 @@ export async function startWorker() {
     const event = await prisma.metaEvents.findUnique({ where: { id: eventId } });
 
     if (!event) {
-      channel.ack(msg); // nothing to process
+      channel.ack(msg);
       return;
     }
 
@@ -45,13 +122,11 @@ export async function startWorker() {
 
       if (!rateLimit.allowed) {
         console.log("Rate Limited — requeueing to retry queue");
-        // Replaces: job.moveToDelayed(nextHour.getTime())
-        // nack without requeue → message goes to DLX → RETRY_QUEUE (1hr TTL) → back here
         channel.nack(msg, false, false);
 
         await prisma.metaEvents.update({
           where: { id: event.id },
-          data: { status: "PENDING" }, // reset so it can be retried
+          data: { status: "PENDING" },
         });
         return;
       }
@@ -71,146 +146,81 @@ export async function startWorker() {
 
       let response;
       switch (event.triggerType) {
-        case 'POSTBACK_MESSAGE': {
-
-          const convertToFollower = automation.convertToFollower
-          if (convertToFollower) {
-
+        case "POSTBACK_MESSAGE": {
+          if (automation.convertToFollower) {
             const senderProfileInfo = await getSenderProfileInfo(
               event.recipientIgId || "",
               oauth.accessToken
-            )
+            );
             if (!senderProfileInfo.is_user_follow_business) {
-              const convertToFollowerMessage = automation.convertToFollowerMessage as any;
-
+              const convertMessage = automation.convertToFollowerMessage as any;
               const messageText =
-                typeof convertToFollowerMessage === "object" && convertToFollowerMessage !== null && "message" in convertToFollowerMessage
-                  ? (convertToFollowerMessage.message as string)
+                typeof convertMessage === "object" && convertMessage !== null && "message" in convertMessage
+                  ? (convertMessage.message as string)
                   : "Please follow our profile!";
-
               const buttons =
-                typeof convertToFollowerMessage === "object" &&
-                  convertToFollowerMessage !== null &&
-                  Array.isArray((convertToFollowerMessage as any).buttons)
-                  ? (convertToFollowerMessage as any).buttons
+                typeof convertMessage === "object" &&
+                convertMessage !== null &&
+                Array.isArray(convertMessage.buttons)
+                  ? convertMessage.buttons
                   : [];
-
-              const messagePayload = {
-                attachment: {
-                  type: "template",
-                  payload: {
-                    template_type: "button",
-                    text: messageText,
-                    buttons: [
-                      {
-                        type: "web_url",
-                        url: `https://instagram.com/${automation.instaAccount?.userName || ""}`,
-                        title: buttons[0]?.text || "Visit Profile",
-                      },
-                      {
-                        type: "postback",
-                        payload: JSON.stringify({
-                          automationId: automation.id,
-                          action: "CONFIRM_FOLLOW",
-                        }),
-                        title: buttons[1]?.text || "I'm Following",
-                      },
-                    ],
-                  },
-                },
-              };
+              const messagePayload = buildFollowerMessagePayload(automation, buttons, messageText);
 
               response = await sendInstagramDM(
                 oauth.accessToken,
                 event.recipientIgId,
                 messagePayload
               );
-              break
-            } else {
-              response = await sendInstagramDM(
+              break;
+            } else if (Array.isArray(automation.responseFlow) && automation.responseFlow.length) {
+              await sendAutomationResponseFlow(
+                automation.responseFlow,
                 oauth.accessToken,
-                event.recipientIgId,
-                { text: automation.messageTemplate }
+                event.recipientIgId
               );
-              break
+              break;
             }
-          } else {
-            response = await sendInstagramDM(
+          }
+          if (Array.isArray(automation.responseFlow) && automation.responseFlow.length) {
+            await sendAutomationResponseFlow(
+              automation.responseFlow,
               oauth.accessToken,
-              event.recipientIgId,
-              { text: automation.messageTemplate }
+              event.recipientIgId
             );
           }
           break;
         }
         case "COMMENT": {
-          const replyMessage = (automation.commentReplies as any[])?.length
-            ? (automation.commentReplies as any[])[
-            Math.floor(
-              Math.random() * (automation.commentReplies as any[]).length,
-            )
-            ]
-            : "Check your DM";
+          const commentReplies = (automation.commentReplies as any[]) || [];
+          const replyMessage =
+            commentReplies.length > 0
+              ? commentReplies[Math.floor(Math.random() * commentReplies.length)]
+              : "Check your DM";
 
           await publicReplyToComment(
             oauth.accessToken,
-
             event.commentId!,
-
-            replyMessage,
+            replyMessage
           );
 
-          const messagePayload =
-            (automation.conversationStarter as any)?.message ||
-              (automation.conversationStarter as any)?.buttonText
-              ? {
-                attachment: {
-                  type: "template",
-                  payload: {
-                    template_type: "button",
-                    text: (automation.conversationStarter as any)
-                      ?.message as string,
-                    buttons: [
-                      {
-                        type: "postback",
-                        payload: JSON.stringify({
-                          automationId: automation.id,
-                          commentId: event.commentId,
-                        }),
-                        title: (automation.conversationStarter as any)
-                          ?.buttonText as string,
-                      },
-                    ],
-                  },
-                },
-              }
-              : { text: automation.messageTemplate };
+          const messagePayload = buildConversationStarterPayload(automation, event);
+
           response = await privateDMReplyToComment(
             oauth.accessToken,
             event.commentId || "",
             messagePayload,
-            event.igUserId,
+            event.igUserId
           );
           break;
         }
-
         case "DM":
-
         case "STORY_REPLY": {
           if (Array.isArray(automation.responseFlow) && automation.responseFlow.length) {
-            for (const item of automation.responseFlow) {
-              // Ensure item is an object and exclude non-plain objects
-              if (item && typeof item === "object" && !Array.isArray(item)) {
-                const messagePayload = { ...item } as Record<string, any>;
-                // Remove 'type' property if it exists; TS safe
-                delete messagePayload.type;
-                await sendInstagramDM(
-                  oauth.accessToken,
-                  event.recipientIgId,
-                  messagePayload
-                );
-              }
-            }
+            await sendAutomationResponseFlow(
+              automation.responseFlow,
+              oauth.accessToken,
+              event.recipientIgId
+            );
           }
           break;
         }
@@ -223,8 +233,7 @@ export async function startWorker() {
         data: { status: "COMPLETED", processedAt: new Date() },
       });
 
-      channel.ack(msg); // ✅ success
-
+      channel.ack(msg);
     } catch (error) {
       console.log(error);
 
@@ -233,7 +242,6 @@ export async function startWorker() {
         data: { status: "FAILED", errorLog: (error as any).toString() },
       });
 
-      // nack without requeue — goes to DLX for retry after 1hr
       channel.nack(msg, false, false);
     }
   });
