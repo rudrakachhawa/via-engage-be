@@ -33,7 +33,6 @@ export async function findDmAutomation(
 
     const normalizedMessage: string =
         normalize(message)
-
     return automations.find(
         (automation: Automation) =>
             automation.keywords.some(

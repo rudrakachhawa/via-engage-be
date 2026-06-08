@@ -27,7 +27,7 @@ export async function processDmEvents(
                 event.message
 
             )
-
+        console.log(JSON.stringify(automation, null, 2))
         if (!automation) {
 
             continue

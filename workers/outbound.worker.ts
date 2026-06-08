@@ -70,7 +70,6 @@ export async function startWorker() {
       if (!oauth) throw new Error("OAuth missing");
 
       let response;
-
       switch (event.triggerType) {
         case 'POSTBACK_MESSAGE': {
 
@@ -198,15 +197,21 @@ export async function startWorker() {
         case "DM":
 
         case "STORY_REPLY": {
-          const messagePayload = {
-            text: automation.messageTemplate
+          if (Array.isArray(automation.responseFlow) && automation.responseFlow.length) {
+            for (const item of automation.responseFlow) {
+              // Ensure item is an object and exclude non-plain objects
+              if (item && typeof item === "object" && !Array.isArray(item)) {
+                const messagePayload = { ...item } as Record<string, any>;
+                // Remove 'type' property if it exists; TS safe
+                delete messagePayload.type;
+                await sendInstagramDM(
+                  oauth.accessToken,
+                  event.recipientIgId,
+                  messagePayload
+                );
+              }
+            }
           }
-          response = await sendInstagramDM(
-            oauth.accessToken,
-            event.recipientIgId,
-            messagePayload
-          );
-
           break;
         }
       }

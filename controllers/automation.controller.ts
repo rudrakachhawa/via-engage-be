@@ -84,7 +84,7 @@ async function updateAutomation(req: Request, res: Response) {
         const fields = [
             'name', 'description', 'triggerType', 'messageTemplate', 'targetContentId',
             'targetContentType', 'targetContentUrl', 'targetThumbnailUrl', 'keywords',
-            'commentReplies', 'igUserId', 'conversationStarter', 'convertToFollower', 'convertToFollowerMessage'
+            'commentReplies', 'igUserId', 'conversationStarter', 'convertToFollower', 'convertToFollowerMessage', 'responseFlow'
         ];
         const {
             isActive
