@@ -1,6 +1,6 @@
 import "dotenv/config";
 import prisma from "../config/prisma";
-import { connectWorker, QUEUE_NAME } from "../queues/outbound.queue";
+import { connectRabbitMQ, getChannel, QUEUE_NAME } from "../queues/outbound.queue";
 import {
   canSendMessage,
   incrementMessageCount,
@@ -12,9 +12,9 @@ import {
 import { sendInstagramDM } from "../lib/services/messaging/messaging.service";
 import { getSenderProfileInfo } from "../lib/services/messaging/instagram.service";
 
-async function startWorker() {
-  const channel = await connectWorker();
-
+export async function startWorker() {
+  await connectRabbitMQ();
+  const channel = getChannel();
   channel.consume(QUEUE_NAME, async (msg) => {
     if (!msg) return;
 
@@ -235,5 +235,3 @@ async function startWorker() {
 
   console.log("Outbound Worker Started");
 }
-
-startWorker().catch(console.error);

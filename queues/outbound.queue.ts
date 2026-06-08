@@ -4,69 +4,50 @@ export const QUEUE_NAME = "outbound-messages";
 export const DLX_NAME = "outbound-messages.dlx";
 export const RETRY_QUEUE = "outbound-messages.retry";
 
-let producerChannel: Channel;
-let consumerChannel: Channel;
+let channel: Channel;
 
-async function setupQueues(channel: Channel) {
-  await channel.assertQueue(QUEUE_NAME, {
-    durable: true,
-    arguments: {
-      "x-dead-letter-exchange": DLX_NAME,
-    },
-  });
-
-  await channel.assertExchange(DLX_NAME, "direct", { durable: true });
-
-  await channel.assertQueue(RETRY_QUEUE, {
-    durable: true,
-    arguments: {
-      "x-dead-letter-exchange": "",
-      "x-dead-letter-routing-key": QUEUE_NAME,
-      "x-message-ttl": 60 * 60 * 1000,
-    },
-  });
-
-  await channel.bindQueue(RETRY_QUEUE, DLX_NAME, QUEUE_NAME);
+async function setupQueues(ch: Channel) {
+    await ch.assertQueue(QUEUE_NAME, {
+        durable: true,
+        arguments: { "x-dead-letter-exchange": DLX_NAME },
+    });
+    await ch.assertExchange(DLX_NAME, "direct", { durable: true });
+    await ch.assertQueue(RETRY_QUEUE, {
+        durable: true,
+        arguments: {
+            "x-dead-letter-exchange": "",
+            "x-dead-letter-routing-key": QUEUE_NAME,
+            "x-message-ttl": 60 * 60 * 1000,
+        },
+    });
+    await ch.bindQueue(RETRY_QUEUE, DLX_NAME, QUEUE_NAME);
 }
 
-// Called by app.ts — producer only, no prefetch, no consume
-export async function connectProducer() {
-  const connection = await amqp.connect(process.env.RABBITMQ_URL!);
+export async function connectRabbitMQ(): Promise<Channel> {
+    const connection = await amqp.connect(process.env.RABBITMQ_URL!);
 
-  connection.on("error", (err) => console.error("RabbitMQ producer error", err));
-  connection.on("close", () => console.warn("RabbitMQ producer connection closed"));
+    connection.on("error", (err) => console.error("RabbitMQ error", err));
+    connection.on("close", () => {
+        console.warn("RabbitMQ connection closed, reconnecting in 5s...");
+        setTimeout(connectRabbitMQ, 5000);
+    });
 
-  producerChannel = await connection.createChannel();
-  await setupQueues(producerChannel);
-  console.log("RabbitMQ producer connected");
-}
-
-// Called by outbound.worker.ts — consumer with prefetch
-export async function connectWorker(): Promise<Channel> {
-  const connection = await amqp.connect(process.env.RABBITMQ_URL!);
-
-  connection.on("error", (err) => console.error("RabbitMQ worker error", err));
-  connection.on("close", () => {
-    console.warn("RabbitMQ worker connection closed, restarting in 5s...");
-    setTimeout(() => connectWorker(), 5000);
-  });
-
-  consumerChannel = await connection.createChannel();
-  await setupQueues(consumerChannel);
-  await consumerChannel.prefetch(3);
-  console.log("RabbitMQ worker connected");
-  return consumerChannel;
+    channel = await connection.createChannel();
+    await setupQueues(channel);
+    await channel.prefetch(3);
+    console.log("RabbitMQ connected");
+    return channel;
 }
 
 export function getChannel(): Channel {
-  if (!producerChannel) throw new Error("Producer channel not initialized");
-  return producerChannel;
+    if (!channel) throw new Error("Channel not initialized");
+    return channel;
 }
 
 export function publishOutboundJob(eventId: string) {
-  getChannel().sendToQueue(
-    QUEUE_NAME,
-    Buffer.from(JSON.stringify({ eventId })),
-    { persistent: true, contentType: "application/json" }
-  );
+    getChannel().sendToQueue(
+        QUEUE_NAME,
+        Buffer.from(JSON.stringify({ eventId })),
+        { persistent: true, contentType: "application/json" }
+    );
 }

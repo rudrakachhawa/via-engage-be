@@ -13,10 +13,15 @@ import automationRouter from './routes/automation.route'
 import indexRouter from './routes/index';
 import metaEventsRouter from './routes/metaEvents.route'
 import testRoutes from './routes/test.routes'
-import { connectProducer } from './queues/outbound.queue';
+import { startWorker } from './workers/outbound.worker';
 
 const app = express();
-connectProducer()
+
+
+startWorker().catch((err) => {
+  console.error("Failed to start worker", err);
+  process.exit(1);
+});
 app.use((req, res, next) => {
   const allowedOrigins = [
     "http://localhost:3000",
