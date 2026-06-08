@@ -7,7 +7,7 @@ import {
 } from "../event.service";
 
 import {
-    outboundQueue
+    publishOutboundJob
 } from "../../../../queues/outbound.queue";
 
 export async function processCommentEvents(
@@ -71,26 +71,7 @@ export async function processCommentEvents(
 
             })
 
-        await outboundQueue.add(
-
-            "process-event",
-
-            {
-
-                eventId:
-                    dbEvent.id
-
-            },
-
-            {
-
-                jobId:
-                    `comment-${dbEvent.dedupeKey}`,
-                removeOnComplete: 1000
-
-            }
-        )
-
+        publishOutboundJob(dbEvent.id);
     }
 
 }

@@ -7,7 +7,7 @@ import {
 } from "../event.service";
 
 import {
-    outboundQueue
+    publishOutboundJob
 } from "../../../../queues/outbound.queue";
 
 export async function processStoryEvents(
@@ -65,25 +65,7 @@ export async function processStoryEvents(
 
             })
 
-        await outboundQueue.add(
-
-            "process-event",
-
-            {
-
-                eventId:
-                    dbEvent.id
-
-            },
-
-            {
-
-                jobId:
-                    `story-${dbEvent.dedupeKey}`
-
-            }
-
-        )
+        publishOutboundJob(dbEvent.id)
 
     }
 

@@ -3,14 +3,23 @@ import { redis } from "../../../config/redis";
 export async function canSendMessage(
     igUserId: string
 ) {
-
     const hourBucket =
         new Date()
             .toISOString()
             .slice(0, 13)
-
     const key =
         `rate-limit:${igUserId}:${hourBucket}`
+    return {
+
+        allowed:
+            true,
+
+        key,
+
+        count: 10
+
+    }
+
 
     const count =
         Number(
@@ -33,7 +42,7 @@ export async function canSendMessage(
 export async function incrementMessageCount(
     key: string
 ) {
-
+    return true
     const value =
         await redis.incr(
             key

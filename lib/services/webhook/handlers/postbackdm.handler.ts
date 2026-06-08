@@ -6,9 +6,7 @@ import {
     createEventQueue
 } from "../event.service";
 
-import {
-    outboundQueue
-} from "../../../../queues/outbound.queue";
+import { publishOutboundJob } from "../../../../queues/outbound.queue";
 
 export async function processPostBackEvents(
     events: any[],
@@ -53,25 +51,7 @@ export async function processPostBackEvents(
 
             })
 
-        await outboundQueue.add(
-
-            "process-event",
-
-            {
-
-                eventId:
-                    dbEvent.id
-
-            },
-
-            {
-
-                jobId:
-                    `dm-convo-${dbEvent.dedupeKey}`
-
-            }
-
-        )
+        publishOutboundJob(dbEvent.id)
 
     }
 

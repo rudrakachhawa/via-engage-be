@@ -1,16 +1,10 @@
 import "dotenv/config";
-
-import { Worker } from "bullmq";
-
 import prisma from "../config/prisma";
-
-import { redis } from "../config/redis";
-
+import { connectRabbitMQ, QUEUE_NAME } from "../queues/outbound.queue";
 import {
   canSendMessage,
   incrementMessageCount,
 } from "../lib/services/rate-limit/rate-limit.service";
-
 import {
   privateDMReplyToComment,
   publicReplyToComment,
@@ -18,72 +12,62 @@ import {
 import { sendInstagramDM } from "../lib/services/messaging/messaging.service";
 import { getSenderProfileInfo } from "../lib/services/messaging/instagram.service";
 
-const worker = new Worker(
-  "outbound-messages",
+async function startWorker() {
+  const channel = await connectRabbitMQ();
 
-  async (job) => {
-    console.log("Job Received", job.id);
-    const { eventId } = job.data;
+  channel.consume(QUEUE_NAME, async (msg) => {
+    if (!msg) return;
 
-    const event = await prisma.metaEvents.findUnique({
-      where: {
-        id: eventId,
-      },
-    });
+    let eventId: string;
+    try {
+      ({ eventId } = JSON.parse(msg.content.toString()));
+    } catch {
+      channel.nack(msg, false, false); // malformed, discard
+      return;
+    }
+
+    console.log("Job Received", eventId);
+
+    const event = await prisma.metaEvents.findUnique({ where: { id: eventId } });
 
     if (!event) {
+      channel.ack(msg); // nothing to process
       return;
     }
 
     try {
       await prisma.metaEvents.update({
-        where: {
-          id: event.id,
-        },
-
-        data: {
-          status: "PROCESSING",
-        },
+        where: { id: event.id },
+        data: { status: "PROCESSING" },
       });
 
       const rateLimit = await canSendMessage(event.igUserId);
 
       if (!rateLimit.allowed) {
-        console.log("Rate Limited");
+        console.log("Rate Limited — requeueing to retry queue");
+        // Replaces: job.moveToDelayed(nextHour.getTime())
+        // nack without requeue → message goes to DLX → RETRY_QUEUE (1hr TTL) → back here
+        channel.nack(msg, false, false);
 
-        const nextHour = new Date();
-
-        nextHour.setHours(nextHour.getHours() + 1);
-
-        nextHour.setMinutes(0, 0, 0);
-
-        await job.moveToDelayed(nextHour.getTime(), job.token);
-
+        await prisma.metaEvents.update({
+          where: { id: event.id },
+          data: { status: "PENDING" }, // reset so it can be retried
+        });
         return;
       }
 
       const automation = await prisma.automation.findUnique({
-        where: {
-          id: event.automationId,
-        },
-        include: {
-          instaAccount: true
-        }
+        where: { id: event.automationId },
+        include: { instaAccount: true },
       });
 
-      if (!automation) {
-        throw new Error("Automation missing");
-      }
+      if (!automation) throw new Error("Automation missing");
 
       const oauth = await prisma.instaAccountOauth.findUnique({
-        where: {
-          igUserId: event.igUserId,
-        },
+        where: { igUserId: event.igUserId },
       });
 
-      if (!oauth) {
-        throw new Error("OAuth missing");
-      }
+      if (!oauth) throw new Error("OAuth missing");
 
       let response;
 
@@ -230,70 +214,26 @@ const worker = new Worker(
       await incrementMessageCount(rateLimit.key);
 
       await prisma.metaEvents.update({
-        where: {
-          id: event.id,
-        },
-
-        data: {
-          status: "COMPLETED",
-
-          processedAt: new Date(),
-        },
+        where: { id: event.id },
+        data: { status: "COMPLETED", processedAt: new Date() },
       });
+
+      channel.ack(msg); // ✅ success
+
     } catch (error) {
-      console.log(error)
-      await prisma.metaEvents.update({
-        where: {
-          id: event.id,
-        },
+      console.log(error);
 
-        data: {
-          status: "FAILED",
-          errorLog: (error as any).toString(),
-        },
+      await prisma.metaEvents.update({
+        where: { id: event.id },
+        data: { status: "FAILED", errorLog: (error as any).toString() },
       });
 
-      throw error;
+      // nack without requeue — goes to DLX for retry after 1hr
+      channel.nack(msg, false, false);
     }
-  },
+  });
 
-  {
-    connection: redis,
+  console.log("Outbound Worker Started");
+}
 
-    concurrency: 3,
-  },
-);
-
-console.log("Outbound Worker Started");
-
-worker.on(
-  "completed",
-
-  (job) => {
-    console.log(`Completed Job ${job.id}`);
-  },
-);
-
-worker.on(
-  "failed",
-
-  (job, err) => {
-    console.log(
-      `Failed Job ${job?.id}`,
-
-      err,
-    );
-  },
-);
-
-worker.on(
-  "error",
-
-  (err) => {
-    console.log(
-      "Worker Error",
-
-      err,
-    );
-  },
-);
+startWorker().catch(console.error);

@@ -1,3 +1,4 @@
+import { publishOutboundJob } from "../../../../queues/outbound.queue";
 import {
     findDmAutomation
 } from "../automation.service";
@@ -6,9 +7,7 @@ import {
     createEventQueue
 } from "../event.service";
 
-import {
-    outboundQueue
-} from "../../../../queues/outbound.queue";
+
 
 export async function processDmEvents(
     events: any[],
@@ -61,26 +60,7 @@ export async function processDmEvents(
 
             })
 
-        await outboundQueue.add(
-
-            "process-event",
-
-            {
-
-                eventId:
-                    dbEvent.id
-
-            },
-
-            {
-
-                jobId:
-                    `dm-${dbEvent.dedupeKey}`
-
-            }
-
-        )
-
+        publishOutboundJob(dbEvent.id);
     }
 
 }

@@ -1,7 +1,7 @@
 import express from "express";
 
-import { outboundQueue }
-    from "../queues/outbound.queue";
+// import { outboundQueue }
+//     from "../queues/outbound.queue";
 
 const router =
     express.Router();
@@ -11,13 +11,13 @@ router.get(
 
     async (_, res) => {
 
-        await outboundQueue.add(
-            "test-job",
+        // await outboundQueue.add(
+        //     "test-job",
 
-            {
-                hello: "world",
-            }
-        );
+        //     {
+        //         hello: "world",
+        //     }
+        // );
 
         res.json({
             success: true,
