@@ -19,8 +19,13 @@ async function sendAutomationResponseFlow(responseFlow: any[], accessToken: stri
   for (const item of responseFlow) {
     // Ensure item is a plain object
     if (item && typeof item === "object" && !Array.isArray(item)) {
-      const messagePayload = { ...item } as Record<string, any>;
+      let messagePayload = { ...item } as Record<string, any>;
       delete messagePayload.type;
+      if (!messagePayload.attachment.payload.buttons.length) {
+        messagePayload = {
+          text: messagePayload.attachment.payload.text
+        }
+      }
       await sendInstagramDM(
         accessToken,
         recipientIgId,
@@ -160,8 +165,8 @@ export async function startWorker() {
                   : "Please follow our profile!";
               const buttons =
                 typeof convertMessage === "object" &&
-                convertMessage !== null &&
-                Array.isArray(convertMessage.buttons)
+                  convertMessage !== null &&
+                  Array.isArray(convertMessage.buttons)
                   ? convertMessage.buttons
                   : [];
               const messagePayload = buildFollowerMessagePayload(automation, buttons, messageText);
@@ -235,8 +240,6 @@ export async function startWorker() {
 
       channel.ack(msg);
     } catch (error) {
-      console.log(error);
-
       await prisma.metaEvents.update({
         where: { id: event.id },
         data: { status: "FAILED", errorLog: (error as any).toString() },
