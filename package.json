@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
-    "amqplib": "^2.0.1",
+    "amqplib": "^0.10.9",
     "axios": "^1.16.0",
     "cookie-parser": "~1.4.4",
     "cors": "^2.8.6",
