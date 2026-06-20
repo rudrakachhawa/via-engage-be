@@ -82,7 +82,7 @@ async function updateAutomation(req: Request, res: Response) {
         const userId = (req as any).user.id;
         const id = getId(req.params.id);
         const fields = [
-            'name', 'description', 'triggerType', 'messageTemplate', 'targetContentId',
+            'name', 'description', 'triggerType', 'targetContentId',
             'targetContentType', 'targetContentUrl', 'targetThumbnailUrl', 'keywords',
             'commentReplies', 'igUserId', 'conversationStarter', 'convertToFollower', 'convertToFollowerMessage', 'responseFlow'
         ];
@@ -124,14 +124,14 @@ async function updateAutomation(req: Request, res: Response) {
 
             switch (effective.triggerType) {
                 case 'DM':
-                    required = ['igUserId', 'name', 'triggerType', 'messageTemplate', 'keywords'];
+                    required = ['igUserId', 'name', 'triggerType', 'keywords'];
                     break;
                 case 'STORY':
-                    required = ['igUserId', 'name', 'triggerType', 'messageTemplate', 'keywords', 'targetContentId'];
+                    required = ['igUserId', 'name', 'triggerType', 'keywords', 'targetContentId'];
                     break;
                 case 'COMMENT':
                     required = [
-                        'igUserId', 'name', 'triggerType', 'messageTemplate', 'keywords', 'targetContentId',
+                        'igUserId', 'name', 'triggerType', 'keywords', 'targetContentId',
                         'commentReplies', 'conversationStarter'
                     ];
                     // Check conversationStarter.buttonText specifically
@@ -141,7 +141,7 @@ async function updateAutomation(req: Request, res: Response) {
                     break;
                 default:
                     // fallback, e.g. block activation due to missing/invalid triggerType
-                    required = ['name', 'triggerType', 'messageTemplate', 'keywords'];
+                    required = ['name', 'triggerType', 'keywords'];
             }
 
             for (const field of required) {
@@ -236,7 +236,7 @@ async function toggleAutomation(req: Request, res: Response) {
             // Replicate/update the same required field logic as in updateAutomation
             // These are the fields available to an automation object
             const fields = [
-                'name', 'description', 'triggerType', 'messageTemplate', 'targetContentId',
+                'name', 'description', 'triggerType', 'targetContentId',
                 'targetContentType', 'targetContentUrl', 'targetThumbnailUrl', 'keywords',
                 'commentReplies', 'igUserId', 'conversationStarter', 'convertToFollower', 'convertToFollowerMessage'
             ];
@@ -252,14 +252,14 @@ async function toggleAutomation(req: Request, res: Response) {
 
             switch (effective.triggerType) {
                 case 'DM':
-                    required = ['igUserId', 'name', 'triggerType', 'messageTemplate', 'keywords'];
+                    required = ['igUserId', 'name', 'triggerType', 'keywords'];
                     break;
                 case 'STORY':
-                    required = ['igUserId', 'name', 'triggerType', 'messageTemplate', 'keywords', 'targetContentId'];
+                    required = ['igUserId', 'name', 'triggerType', 'keywords', 'targetContentId'];
                     break;
                 case 'COMMENT':
                     required = [
-                        'igUserId', 'name', 'triggerType', 'messageTemplate', 'keywords', 'targetContentId',
+                        'igUserId', 'name', 'triggerType', 'keywords', 'targetContentId',
                         'commentReplies', 'conversationStarter'
                     ];
                     // Check conversationStarter.buttonText specifically
@@ -268,7 +268,7 @@ async function toggleAutomation(req: Request, res: Response) {
                     }
                     break;
                 default:
-                    required = ['name', 'triggerType', 'messageTemplate', 'keywords'];
+                    required = ['name', 'triggerType', 'keywords'];
             }
 
             for (const field of required) {
